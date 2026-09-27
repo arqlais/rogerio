@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Data, Entity, Quote, QuoteItem } from '../types'
@@ -155,7 +155,7 @@ function QuoteEditor({ id }: { id: string }) {
   }
 
   return (
-    <div className="page">
+    <div className="page quote-page">
       <a className="back" href="#/orcamentos">‹ Orçamentos</a>
       <div className="page-head">
         <div className="row" style={{ gap: 16 }}>
@@ -171,6 +171,8 @@ function QuoteEditor({ id }: { id: string }) {
         </div>
       </div>
 
+      <div className="q-layout">
+      <div className="q-form">
       <section className="card">
         <div className="grid-form three">
           <Field label="Empresa que está orçando">
@@ -322,6 +324,38 @@ function QuoteEditor({ id }: { id: string }) {
           </div>
         </section>
       </div>
+      </div>
+      <aside className="q-preview">
+        <QuotePreview html={quoteHtml(data, q)} />
+        <div className="row wrap q-preview-actions">
+          <button className="btn small" onClick={() => printQuote(data, q)}>Abrir em tela cheia</button>
+          <button className="btn small primary" onClick={() => downloadQuotePdf(data, q)}>Baixar PDF</button>
+        </div>
+        <small className="muted">Pré-visualização do PDF · papel timbrado da {ent?.name}</small>
+      </aside>
+      </div>
+    </div>
+  )
+}
+
+/** Miniatura viva do PDF (folha A4 em escala), atualiza enquanto ele digita. */
+function QuotePreview({ html }: { html: string }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(360)
+  const [doc, setDoc] = useState(html)
+  useEffect(() => { const t = setTimeout(() => setDoc(html), 350); return () => clearTimeout(t) }, [html])
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const scale = w / 794
+  const clean = doc.replace('</head>', '<style>.bar{display:none!important}html,body{background:#fff!important;overflow:hidden}.sheet{margin:0!important;box-shadow:none!important}</style></head>')
+  return (
+    <div className="q-sheet" ref={box} style={{ height: 1123 * scale }}>
+      <iframe title="Pré-visualização do orçamento" srcDoc={clean} style={{ width: 794, height: 1123, transform: `scale(${scale})` }} tabIndex={-1} />
     </div>
   )
 }
