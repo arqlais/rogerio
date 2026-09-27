@@ -31,7 +31,7 @@ try {
     await page.reload()
     await page.waitForTimeout(500)
     ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: tela de boas-vindas`)
-    const names = await page.locator('.scope-seg button').allInnerTexts()
+    const names = await page.locator('.scope-seg button:visible').allInnerTexts()
     ok(['Empresa', 'Pessoal', 'Tudo'].every((n) => names.includes(n)), `${vp.name}: topo Empresa / Pessoal / Tudo`)
 
     // exemplo
@@ -129,6 +129,9 @@ try {
     await go('#/orcamentos')
     await page.getByRole('button', { name: '+ Orçamento para escola (PDDE)' }).click(); await page.waitForTimeout(200)
     await page.locator('.pick-co button', { hasText: 'Quira' }).click(); await page.waitForTimeout(300)
+    const escola = await page.locator('select[aria-label="Escola cadastrada"] option').nth(1).getAttribute('value')
+    await page.locator('select[aria-label="Escola cadastrada"]').selectOption(escola); await page.waitForTimeout(150)
+    ok((await page.getByLabel('CNPJ da APM').inputValue()).length > 10, `${vp.name}: escolher escola preenche o CNPJ da APM`)
     await page.getByLabel('Nome da APM').fill('E.E. Teste')
     await page.getByLabel('CNPJ da APM').fill('11.111.111/0001-11')
     await page.getByLabel('Descrição do item').first().fill('Manutenção elétrica')
@@ -160,29 +163,26 @@ try {
     // carteira pessoal
     const pess = d6.entities.find((e) => e.kind === 'pessoal')
     await page.evaluate(() => (location.hash = '#/'))
-    await page.locator('.scope-seg button', { hasText: 'Pessoal' }).click(); await page.waitForTimeout(250)
+    await page.locator('.scope-seg button:visible', { hasText: 'Pessoal' }).click(); await page.waitForTimeout(250)
     await shot('pessoal')
     ok((await stored()).settings.scope === pess.id, `${vp.name}: filtro Pessoal`)
 
     // empresas sempre juntas (sem filtro de CNPJ no topo) e modo escuro
-    await page.locator('.scope-seg button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
+    await page.locator('.scope-seg button:visible', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
     ok((await stored()).settings.scope === 'empresa' && await page.locator('.cnpj-pick').count() === 0, `${vp.name}: Empresa junta todos os CNPJs`)
-    // layout novo (padrão): central de comando e menu do usuário
+    // início reorganizado: central de comando, atenção e resumo lateral
     await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
-    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.todo').count() === 1, `${vp.name}: layout novo com central de comando`)
-    if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150); await page.locator('.sheet [aria-label="Modo escuro"]').click() }
-    else { await page.locator('.nav2-me').click(); await page.getByRole('button', { name: 'Modo escuro' }).click() }
-    await page.waitForTimeout(250)
+    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.todo').count() === 1 && await page.locator('.rail-summary').count() === 1, `${vp.name}: início com atalhos, atenção e resumo`)
+    // clientes e escolas já cadastradas
+    await page.evaluate(() => (location.hash = '#/clientes')); await page.waitForTimeout(250)
+    ok(await page.getByText('E.E. Prof. José Calvitti Filho').count() > 0, `${vp.name}: escolas já cadastradas em Clientes`)
+    await shot('clientes')
+    if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
+    await page.locator(vp.width < 800 ? '.sheet [aria-label="Modo escuro"]' : '.sidebar [aria-label="Modo escuro"]').click(); await page.waitForTimeout(250)
     ok(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', `${vp.name}: modo escuro`)
     await shot('escuro')
-    if (vp.width >= 800) {
-      await page.locator('.nav2-me').click(); await page.getByRole('button', { name: 'Usar layout antigo' }).click(); await page.waitForTimeout(250)
-      ok(await page.locator('.sidebar').count() === 1, `${vp.name}: troca para o layout antigo`)
-      await page.locator('.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
-    } else {
-      if (!(await page.locator('.sheet').count())) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
-      await page.locator('.sheet [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
-    }
+    await page.locator(vp.width < 800 ? '.sheet [aria-label="Exemplo preenchido"]' : '.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
+    await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
     ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: olho volta para a versão vazia`)
     ok(errors.length === 0, `${vp.name}: nenhum erro de página ${errors.join(' | ')}`)
     await page.close()

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
-import type { Data, Entity, Quote, QuoteItem, QuoteTheme } from '../types'
+import type { Client, Data, Entity, Quote, QuoteItem, QuoteTheme } from '../types'
 import carlito400 from '@fontsource/carlito/files/carlito-latin-400-normal.woff2?inline'
 import carlito700 from '@fontsource/carlito/files/carlito-latin-700-normal.woff2?inline'
 import arimo400 from '@fontsource/arimo/files/arimo-latin-400-normal.woff2?inline'
@@ -9,6 +9,7 @@ import arimo700 from '@fontsource/arimo/files/arimo-latin-700-normal.woff2?inlin
 import { Attachments } from '../components/Attachments'
 import { Icon } from '../components/Icon'
 import { EntityForm } from './Profiles'
+import { ClientForm } from './Clients'
 import { Badge, EntityMark, Empty, Field, Modal, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
 import { downloadPdf } from '../pdf'
 import { ownedBy, addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
@@ -80,6 +81,7 @@ function QuoteList() {
         <div className="row wrap">
           <button className="btn primary" onClick={() => create('pdde')}>+ Orçamento para escola (PDDE)</button>
           <button className="btn" onClick={() => create('padrao')}>+ Orçamento comum</button>
+          <a className="btn" href="./planilhas/Precificacao-obras-e-servicos.xlsx" download>Planilha de preços (Excel)</a>
         </div>
       </div>
       <div className="stats">
@@ -131,10 +133,21 @@ function QuoteList() {
 function QuoteEditor({ id }: { id: string }) {
   const { data, save, remove, setSettings } = useStore()
   const [entForm, setEntForm] = useState<Partial<Entity> | null>(null)
+  const [clientForm, setClientForm] = useState<Partial<Client> | null>(null)
   const q = data.quotes.find((x) => x.id === id)
   if (!q) return <div className="page"><Empty title="Orçamento não encontrado" action={<a className="btn" href="#/orcamentos">Voltar</a>} /></div>
   const pdde = q.model === 'pdde'
   const ent = data.entities.find((e) => e.id === q.entityId)
+  const schools = data.clients.filter((c) => c.kind === 'escola' && !c.archived).sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || a.name.localeCompare(b.name))
+  const others = data.clients.filter((c) => c.kind !== 'escola' && !c.archived).sort((a, b) => a.name.localeCompare(b.name))
+  const fillFrom = (c: Client): Partial<Quote> => (pdde
+    ? { clientId: c.id, apmName: c.apm || c.name.toUpperCase(), apmCnpj: c.doc, client: c.name }
+    : { clientId: c.id, client: c.name, clientDoc: c.doc, clientContact: [c.contact, c.phone].filter(Boolean).join(' · '), address: c.address ?? q.address })
+  const pickClient = (id: string) => {
+    const c = data.clients.find((x) => x.id === id)
+    set(c ? fillFrom(c) : { clientId: undefined })
+  }
+  const clientFormEl = clientForm && <ClientForm initial={clientForm} onClose={() => setClientForm(null)} onSaved={(c) => set(fillFrom(c))} />
   const entFormEl = entForm && <EntityForm initial={entForm} onClose={() => setEntForm(null)} onSaved={(e) => { if (!entForm.id) changeEntity(e.id) }} />
   const set = (x: Partial<Quote>) => save('quotes', { ...q, ...x })
   const setItem = (iid: string, x: Partial<QuoteItem>) => set({ items: q.items.map((i) => (i.id === iid ? { ...i, ...x } : i)) })
@@ -230,8 +243,18 @@ function QuoteEditor({ id }: { id: string }) {
       {pdde ? (
         <>
           <section className="card">
-            <div className="card-head"><h2>1. Orçamento destinado a</h2></div>
-            <div className="grid-form">
+            <div className="card-head"><h2>1. Orçamento destinado a</h2><a className="link" href="#/clientes">cadastro de escolas</a></div>
+            <Field label="Escola" hint="Escolha na lista: nome e CNPJ da APM entram sozinhos. Ou preencha à mão abaixo.">
+              <div className="row">
+                <select value={q.clientId ?? ''} onChange={(e) => pickClient(e.target.value)} aria-label="Escola cadastrada" style={{ flex: 1 }}>
+                  <option value="">Selecione…</option>
+                  {schools.map((c) => <option key={c.id} value={c.id}>{c.name}{c.doc ? ` · ${c.doc}` : ''}</option>)}
+                </select>
+                {q.clientId && <button className="btn icon-only" onClick={() => setClientForm(data.clients.find((c) => c.id === q.clientId) ?? null)} title="Editar escola" aria-label="Editar escola"><Icon name="pencil" size={17} /></button>}
+                <button className="btn icon-only" onClick={() => setClientForm({ kind: 'escola' })} title="Nova escola" aria-label="Nova escola"><Icon name="plus" size={17} /></button>
+              </div>
+            </Field>
+            <div className="grid-form" style={{ marginTop: 14 }}>
               <Field label="Nome da APM (escola)" span={2}><input value={q.apmName ?? ''} onChange={(e) => set({ apmName: e.target.value })} placeholder="Ex.: E.E. Prof. José Calvitti Filho" aria-label="Nome da APM" /></Field>
               <Field label="CNPJ da APM"><input value={q.apmCnpj ?? ''} onChange={(e) => set({ apmCnpj: e.target.value })} placeholder="00.000.000/0001-00" aria-label="CNPJ da APM" /></Field>
               <Field label="Ano de exercício"><input value={q.exercise ?? ''} onChange={(e) => set({ exercise: e.target.value })} aria-label="Ano de exercício" /></Field>
@@ -292,7 +315,17 @@ function QuoteEditor({ id }: { id: string }) {
       ) : (
         <>
           <section className="card">
-            <div className="grid-form three">
+            <Field label="Cliente cadastrado" hint="Escolha na lista ou preencha os dados à mão abaixo.">
+              <div className="row">
+                <select value={q.clientId ?? ''} onChange={(e) => pickClient(e.target.value)} aria-label="Cliente cadastrado" style={{ flex: 1 }}>
+                  <option value="">Selecione…</option>
+                  {others.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                {q.clientId && <button className="btn icon-only" onClick={() => setClientForm(data.clients.find((c) => c.id === q.clientId) ?? null)} title="Editar cliente" aria-label="Editar cliente"><Icon name="pencil" size={17} /></button>}
+                <button className="btn icon-only" onClick={() => setClientForm({ kind: 'particular' })} title="Novo cliente" aria-label="Novo cliente"><Icon name="plus" size={17} /></button>
+              </div>
+            </Field>
+            <div className="grid-form three" style={{ marginTop: 14 }}>
               <Field label="Cliente" span={2}><input value={q.client} onChange={(e) => set({ client: e.target.value })} placeholder="Nome do cliente" aria-label="Cliente" /></Field>
               <Field label="Serviço / objeto" span={2}><input value={q.title} onChange={(e) => set({ title: e.target.value })} placeholder="Ex.: Reforma da cobertura e pintura geral" aria-label="Objeto" /></Field>
               <Field label="CPF / CNPJ do cliente"><input value={q.clientDoc ?? ''} onChange={(e) => set({ clientDoc: e.target.value })} aria-label="Documento do cliente" /></Field>
@@ -371,6 +404,7 @@ function QuoteEditor({ id }: { id: string }) {
       </aside>
       </div>
       {entFormEl}
+      {clientFormEl}
     </div>
   )
 }

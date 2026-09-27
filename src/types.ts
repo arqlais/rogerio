@@ -210,6 +210,7 @@ export interface Quote {
   subprogram?: string
   exercise?: string
   contactName?: string // pessoa responsável pela empresa
+  clientId?: string // cliente/escola cadastrado
   files?: FileRef[] // orçamento assinado e carimbado, fotos
   number: string
   entityId: string
@@ -244,6 +245,25 @@ export interface CalEvent {
   notes?: string
   done?: boolean
   repeat?: 'semanal' | 'mensal'
+}
+
+export type ClientKind = 'escola' | 'prefeitura' | 'empresa' | 'particular'
+
+/** Cliente: escola (APM), prefeitura, empresa ou pessoa. Usado nos orçamentos e nas obras. */
+export interface Client {
+  id: string
+  kind: ClientKind
+  name: string // nome da escola / cliente
+  apm?: string // nome da APM (escola), como vai no orçamento
+  doc?: string // CNPJ da APM / CNPJ / CPF
+  contact?: string // diretor(a), responsável
+  phone?: string
+  email?: string
+  address?: string
+  city?: string
+  notes?: string
+  favorite?: boolean
+  archived?: boolean
 }
 
 export interface Category {
@@ -289,8 +309,9 @@ export interface Data {
   contracts: Contract[]
   quotes: Quote[]
   events: CalEvent[]
+  clients: Client[]
   categories: Category[]
   settings: Settings
 }
 
-export type Collection = 'entities' | 'accounts' | 'projects' | 'units' | 'people' | 'txs' | 'attendance' | 'contracts' | 'categories' | 'quotes' | 'events'
+export type Collection = 'entities' | 'accounts' | 'projects' | 'units' | 'people' | 'txs' | 'attendance' | 'contracts' | 'categories' | 'quotes' | 'events' | 'clients'

@@ -6,7 +6,6 @@ import { EntityMark } from '../components/ui'
 import { Donut, ForecastChart, MonthBars, Ring } from '../components/Charts'
 import { Icon } from '../components/Icon'
 import { TxList } from '../components/TxList'
-import { useLayout } from '../layout'
 import { isGroup, ownedBy, signed, accountBalance, addDays, daysBetween, addMonth, fmtDate, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
 export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
@@ -96,7 +95,6 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   const lateIn = late.filter((x) => x.kind === 'in')
 
   const [view, setView] = useState<'saldo' | 'meses' | 'gastos' | 'cnpj'>('saldo')
-  const { layout } = useLayout()
   // "precisa da sua atenção": tarefas que o sistema encontra sozinho
   const todo: { icon: string; tone: 'bad' | 'warn' | 'info'; title: string; sub: string; action: string; go: () => void }[] = []
   if (lateOut.length) todo.push({ icon: 'alert', tone: 'bad', title: `${lateOut.length} conta${lateOut.length > 1 ? 's' : ''} vencida${lateOut.length > 1 ? 's' : ''}`, sub: `${money(sum(lateOut))} para pagar`, action: 'ver contas', go: () => go('/financeiro') })
@@ -121,31 +119,28 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
     ['building', 'Nova obra', 'ou ver as obras', () => go('/obras')],
   ]
   return (
-    <div className="page">
-      <header className="dash-head">
-        <span className="eyebrow">{longDate}{ent ? ` · ${ent.name}` : scope === 'empresa' ? ' · empresa' : scope === 'all' ? ' · tudo' : ''}</span>
-        <h1 className="dash-title"><span className="hello">{hello.toLowerCase()},</span> {(data.settings.owner || 'Rogério').toLowerCase()}</h1>
-        <p className="dash-sub">{weekLine}</p>
-        {ent && ent.kind === 'empresa' && (
-          <a className="ent-chip" href={`#/empresa/${ent.id}`}><EntityMark e={ent} size={18} /><b>{ent.name}</b><span>{ent.legalName}</span>{ent.doc && <span>CNPJ {ent.doc}</span>}</a>
-        )}
-      </header>
+    <div className="page dash">
+      <div className="dash-grid">
+        <div className="dash-main">
+          <header className="dash-head">
+            <span className="eyebrow">{longDate}{scope === 'empresa' ? ' · empresa' : scope === 'all' ? ' · tudo' : ent?.kind === 'pessoal' ? ' · pessoal' : ''}</span>
+            <h1 className="dash-title"><span className="hello">{hello.toLowerCase()},</span> {(data.settings.owner || 'Rogério').toLowerCase()}</h1>
+            <p className="dash-sub">{weekLine}</p>
+          </header>
 
-      {fresh && (
-        <div className="card welcome">
-          <h2>Vamos começar</h2>
-          <ol>
-            <li><a href="#/cadastros/empresas">Confira os CNPJs e as contas bancárias</a> e coloque o saldo de hoje.</li>
-            <li><a href="#/obras">Cadastre as obras</a> — para o prédio, escolha "Incorporação" e gere os 9 apartamentos.</li>
-            <li><a href="#/equipe/pessoas">Cadastre a equipe</a>: fixos, diaristas e empreiteiros.</li>
-            <li>Lance as contas a pagar e a receber no botão <b>Lançar</b>, no alto da tela.</li>
-          </ol>
-          <button className="btn" onClick={loadSample}>Ver a plataforma com dados de exemplo</button>
-        </div>
-      )}
+          {fresh && (
+            <div className="card welcome">
+              <h2>Vamos começar</h2>
+              <ol>
+                <li><a href="#/cadastros/empresas">Confira os CNPJs e as contas bancárias</a> e coloque o saldo de hoje.</li>
+                <li><a href="#/obras">Cadastre as obras</a> — para o prédio, escolha "Incorporação" e gere os 9 apartamentos.</li>
+                <li><a href="#/equipe/pessoas">Cadastre a equipe</a>: fixos, diaristas e empreiteiros.</li>
+                <li>Lance as contas a pagar e a receber no botão <b>Lançar</b>.</li>
+              </ol>
+              <button className="btn" onClick={loadSample}>Ver a plataforma com dados de exemplo</button>
+            </div>
+          )}
 
-      {layout === 'novo' && (
-        <>
           <section className="cmd">
             <h2 className="cmd-title">o que você quer fazer?</h2>
             <div className="cmd-grid">
@@ -154,6 +149,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
               ))}
             </div>
           </section>
+
           <section className="card todo">
             <div className="card-head"><h2>precisa da sua atenção</h2>{todo.length > 0 && <span className="todo-count">{todo.length}</span>}</div>
             {todo.length ? (
@@ -168,58 +164,55 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
               </div>
             ) : <p className="todo-ok"><Icon name="check" size={18} /> Tudo em dia. Nada pendente por aqui.</p>}
           </section>
-        </>
-      )}
 
-      <div className="kpis">
-        <button className="kpi" onClick={() => go('/cadastros/empresas')}>
-          <span className="kpi-top"><span className="kpi-l">saldo nas contas</span><span className="kpi-ic"><Icon name="wallet" size={16} /></span></span>
-          <strong className={balance < 0 ? 'neg' : ''}>{money(balance)}</strong>
-          <small>em 45 dias: {money(endBal)}{lowest.value < 0 ? <span className="neg"> · fica negativo em {fmtDate(lowest.date).slice(0, 5)}</span> : ''}</small>
-        </button>
-        <button className="kpi" onClick={() => go('/financeiro')}>
-          <span className="kpi-top"><span className="kpi-l">a receber</span><span className="kpi-ic in"><Icon name="arrowUp" size={16} /></span></span>
-          <strong className="pos">{money(sum(toReceive))}</strong>
-          <small>{lateIn.length ? <span className="neg">{money(sum(lateIn))} atrasado</span> : `${toReceive.length} lançamento(s)`}</small>
-        </button>
-        <button className="kpi" onClick={() => go('/financeiro')}>
-          <span className="kpi-top"><span className="kpi-l">a pagar</span><span className="kpi-ic out"><Icon name="arrowDown" size={16} /></span></span>
-          <strong>{money(sum(toPay) + pendingDaily)}</strong>
-          <small>{lateOut.length ? <span className="neg">{lateOut.length} vencida(s) · {money(sum(lateOut))}</span> : pendingDaily ? `inclui ${money(pendingDaily)} de diárias` : `${toPay.length} lançamento(s)`}</small>
-        </button>
-        <div className="kpi">
-          <span className="kpi-top"><span className="kpi-l">resultado de {monthName(ym).split(' ')[0]}</span><span className="kpi-ic"><Icon name="trend" size={16} /></span></span>
-          <strong className={m.result < 0 ? 'neg' : 'pos'}>{money(m.result)}</strong>
-          <small>previsto no mês: {money(m.forecast)}</small>
+          <section className="card">
+            <div className="card-head">
+              <div className="seg compact">
+                <button className={view === 'saldo' ? 'on' : ''} onClick={() => setView('saldo')}>saldo previsto</button>
+                <button className={view === 'meses' ? 'on' : ''} onClick={() => setView('meses')}>entradas × saídas</button>
+                <button className={view === 'gastos' ? 'on' : ''} onClick={() => setView('gastos')}>gastos do mês</button>
+                {isGroup(scope) && <button className={view === 'cnpj' ? 'on' : ''} onClick={() => setView('cnpj')}>por CNPJ</button>}
+              </div>
+              {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))} em 45 dias</span>}
+            </div>
+            {view === 'saldo' && <ForecastChart points={forecast} height={220} />}
+            {view === 'meses' && <MonthBars data={chart} />}
+            {view === 'gastos' && (spend.total ? <Donut rows={spend.rows} total={spend.total} /> : <p className="muted">Nenhum gasto lançado neste mês.</p>)}
+            {view === 'cnpj' && <Compare scope={scope} />}
+          </section>
+
+          <section className="card">
+            <div className="card-head"><h2>próximos 15 dias</h2><button className="link" onClick={() => onNewTx({ kind: 'out' })}>+ lançar conta</button></div>
+            <TxList txs={upcoming} scope={scope} empty="Nada vencendo nos próximos 15 dias" />
+          </section>
         </div>
-      </div>
 
-      <section className="card">
-        <div className="card-head">
-          <div className="seg compact">
-            <button className={view === 'saldo' ? 'on' : ''} onClick={() => setView('saldo')}>saldo previsto</button>
-            <button className={view === 'meses' ? 'on' : ''} onClick={() => setView('meses')}>entradas × saídas</button>
-            <button className={view === 'gastos' ? 'on' : ''} onClick={() => setView('gastos')}>gastos do mês</button>
-            {isGroup(scope) && <button className={view === 'cnpj' ? 'on' : ''} onClick={() => setView('cnpj')}>por CNPJ</button>}
-          </div>
-          {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))} em 45 dias</span>}
-        </div>
-        {view === 'saldo' && <ForecastChart points={forecast} height={220} />}
-        {view === 'meses' && <MonthBars data={chart} />}
-        {view === 'gastos' && (spend.total ? <Donut rows={spend.rows} total={spend.total} /> : <p className="muted">Nenhum gasto lançado neste mês.</p>)}
-        {view === 'cnpj' && <Compare scope={scope} />}
-      </section>
+        <aside className="dash-rail">
+          <section className="card rail-summary">
+            <div className="card-head"><h2>resumo</h2><small className="muted">{monthName(ym)}</small></div>
+            <button className="rs-row big" onClick={() => go('/cadastros/empresas')}>
+              <span className="rs-l">saldo nas contas</span>
+              <strong className={balance < 0 ? 'neg' : ''}>{money(balance)}</strong>
+              <small>em 45 dias: {money(endBal)}</small>
+              {lowest.value < 0 && <small className="neg">fica negativo em {fmtDate(lowest.date).slice(0, 5)}</small>}
+            </button>
+            <button className="rs-row" onClick={() => go('/financeiro')}>
+              <span className="rs-ic in"><Icon name="arrowUp" size={16} /></span>
+              <span className="rs-t"><span className="rs-l">a receber</span>{lateIn.length > 0 && <small className="neg">{money(sum(lateIn))} atrasado</small>}</span>
+              <b className="pos">{money(sum(toReceive))}</b>
+            </button>
+            <button className="rs-row" onClick={() => go('/financeiro')}>
+              <span className="rs-ic out"><Icon name="arrowDown" size={16} /></span>
+              <span className="rs-t"><span className="rs-l">a pagar</span>{lateOut.length > 0 ? <small className="neg">{lateOut.length} vencida(s)</small> : pendingDaily > 0 ? <small>inclui diárias</small> : null}</span>
+              <b>{money(sum(toPay) + pendingDaily)}</b>
+            </button>
+            <div className="rs-row">
+              <span className="rs-ic"><Icon name="trend" size={16} /></span>
+              <span className="rs-t"><span className="rs-l">resultado do mês</span><small>previsto {money(m.forecast)}</small></span>
+              <b className={m.result < 0 ? 'neg' : 'pos'}>{money(m.result)}</b>
+            </div>
+          </section>
 
-      <div className="cols">
-        <section className="card">
-          <div className="card-head">
-            <h2>próximos 15 dias</h2>
-            {(pendingDaily > 0) && <a className="link" href="#/equipe/diarias">diárias a acertar: {money(pendingDaily)}</a>}
-          </div>
-          <TxList txs={upcoming} scope={scope} empty="Nada vencendo nos próximos 15 dias" />
-          <button className="link" onClick={() => onNewTx({ kind: 'out' })}>+ lançar conta</button>
-        </section>
-        <div className="stack">
           <section className="card">
             <div className="card-head"><h2>agenda</h2><a className="link" href="#/agenda">abrir</a></div>
             {agenda.length ? agenda.map((e) => (
@@ -229,23 +222,24 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
               </a>
             )) : <p className="muted">Nada marcado para hoje e amanhã.</p>}
           </section>
-          {projects.length > 0 && (
-            <section className="card">
-              <div className="card-head"><h2>obras em andamento</h2><a className="link" href="#/obras">ver todas</a></div>
+
+          <section className="card">
+            <div className="card-head"><h2>obras em andamento</h2><a className="link" href="#/obras">ver todas</a></div>
+            {projects.length ? (
               <div className="proj-list">
                 {projects.map((p) => {
-                  const s = projectStats(data, p.id)
+                  const st = projectStats(data, p.id)
                   return (
                     <a key={p.id} className="proj-row" href={`#/obras/${p.id}`}>
-                      {p.budget > 0 ? <Ring value={s.budgetUse} size={44} /> : <span className="ring-ph sm"><Icon name="building" size={18} /></span>}
-                      <span className="proj-row-b"><b>{p.name}</b><small>gasto {money(s.cost)}{p.budget ? ` de ${money(p.budget)}` : ''}</small></span>
+                      {p.budget > 0 ? <Ring value={st.budgetUse} size={44} /> : <span className="ring-ph sm"><Icon name="building" size={18} /></span>}
+                      <span className="proj-row-b"><b>{p.name}</b><small>gasto {money(st.cost)}{p.budget ? ` de ${money(p.budget)}` : ''}</small></span>
                     </a>
                   )
                 })}
               </div>
-            </section>
-          )}
-        </div>
+            ) : <p className="muted">Nenhuma obra em andamento.</p>}
+          </section>
+        </aside>
       </div>
     </div>
   )

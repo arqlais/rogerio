@@ -1,6 +1,5 @@
 import { useStore, emptyData } from '../store'
 import { CLOUD } from '../cloud'
-import { useLayout } from '../layout'
 import { signOut } from '../App'
 import { Field, NumInput, confirmDialog, toast } from '../components/ui'
 import { downloadFile, today } from '../utils'
@@ -9,7 +8,6 @@ import type { Data } from '../types'
 export function SettingsPage() {
   const { data, setSettings, replaceAll, userEmail, demo, setDemo, resetDemo } = useStore()
   const s = data.settings
-  const { layout, setLayout } = useLayout()
 
   const backup = () => downloadFile(`backup-gestao-${today()}.json`, JSON.stringify(data, null, 2), 'application/json')
   const restore = async (f?: File) => {
@@ -53,19 +51,6 @@ export function SettingsPage() {
           <button className="btn" onClick={backup}>Baixar backup</button>
           <label className="btn">Restaurar backup<input type="file" accept="application/json" hidden onChange={(e) => restore(e.target.files?.[0])} /></label>
           {CLOUD && <button className="btn" onClick={() => signOut()}>Sair</button>}
-        </div>
-      </section>
-      <section className="card">
-        <div className="card-head"><div><h2>Aparência</h2><small className="muted">vale só para este aparelho</small></div></div>
-        <div className="layout-pick">
-          <button className={layout === 'novo' ? 'on' : ''} onClick={() => setLayout('novo')}>
-            <span className="lp-img novo"><i /><i /><i /></span>
-            <b>Layout novo</b><small>menu no topo e central de comando no início</small>
-          </button>
-          <button className={layout === 'classico' ? 'on' : ''} onClick={() => setLayout('classico')}>
-            <span className="lp-img classico"><i /><i /><i /></span>
-            <b>Layout antigo</b><small>menu azul na lateral</small>
-          </button>
         </div>
       </section>
       <section className="card">

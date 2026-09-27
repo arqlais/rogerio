@@ -4,7 +4,7 @@ import { buildICS } from './ics'
 import { ARTIFACT } from './env'
 import { setFilesUser } from './files'
 import schemaSql from '../supabase/schema.sql?raw'
-import type { Category, Collection, Data, Entity, QuoteTheme, Settings } from './types'
+import type { Category, Client, Collection, Data, Entity, QuoteTheme, Settings } from './types'
 import { BRAND_ASSETS } from './brandAssets'
 import { addDays, addMonths, setCompanyIds, today, uid } from './utils'
 
@@ -68,6 +68,12 @@ const COMPANIES: Omit<Entity, 'id'>[] = [
   { name: 'AV', kind: 'empresa', color: '#8a4fbf' },
 ]
 
+/** Escolas que já aparecem nos orçamentos e notas enviados. */
+const SCHOOLS = (): Client[] => [
+  { id: uid(), kind: 'escola', name: 'E.E. Profª Ordânia Janone Crespo', apm: 'E.E. PROFª ORDÂNIA JANONE CRESPO', doc: '50.185.669/0001-73', city: 'Santo André – SP', favorite: true },
+  { id: uid(), kind: 'escola', name: 'E.E. Prof. José Calvitti Filho', apm: 'E.E. PROF JOSE CALVITTI FILHO', doc: '50.177.898/0001-46', address: 'Rua Senador Queirós, 1000 – Jardim Bom Pastor', city: 'Santo André – SP', phone: '(11) 4426-9600', email: 'e008382a@educacao.sp.gov.br', favorite: true },
+]
+
 export const DEFAULT_PROFILE = {
   fullName: 'Rogério Francisco Vieira', cpf: '152.551.248-00', profession: 'Engenheiro Civil', crea: 'CREA-SP 5070438360',
   phone: '(11) 97520-8296', email: 'roger.rdl76@yahoo.com.br',
@@ -80,10 +86,10 @@ export function emptyData(): Data {
     { id: uid(), name: 'Pessoal', kind: 'pessoal', doc: DEFAULT_PROFILE.cpf, color: '#5b6573', favorite: true },
   ]
   return {
-    version: 4,
+    version: 5,
     entities,
     accounts: entities.map((e) => ({ id: uid(), entityId: e.id, name: e.kind === 'pessoal' ? 'Conta pessoal' : `Conta ${e.name}`, initial: 0, initialDate: start })),
-    projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [],
+    projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [], clients: SCHOOLS(),
     categories: DEFAULT_CATEGORIES(),
     settings: withProfile({ ...DEFAULT_SETTINGS }),
   }
@@ -206,11 +212,14 @@ function normalize(raw: Partial<Data>): Data {
   if ((raw.version ?? 1) < 4 && raw.entities) {
     raw = { ...raw, version: 4, entities: raw.entities.map((e) => { const k = e.name.toLowerCase().replace('engefort', 'engforte'); return THEMES[k] && !e.quoteTheme ? { ...e, quoteTheme: THEMES[k] } : e }) }
   }
+  // versão 4 → 5: cadastro de clientes, já com as escolas
+  if ((raw.version ?? 1) < 5) raw = { ...raw, version: 5, clients: raw.clients?.length ? raw.clients : SCHOOLS() }
   return {
     ...base,
     ...raw,
     categories: raw.categories?.length ? raw.categories : base.categories,
     quotes: raw.quotes ?? [],
+    clients: raw.clients ?? [],
     events: raw.events ?? [],
     settings: withProfile({ ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) }),
   } as Data

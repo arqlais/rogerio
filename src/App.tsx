@@ -7,7 +7,7 @@ import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
 import { Icon } from './components/Icon'
-import { LayoutCtx, readLayout, saveLayout, type Layout } from './layout'
+import { LayoutCtx, type Layout } from './layout'
 import { BRAND_ASSETS } from './brandAssets'
 import type { Tx } from './types'
 import { Dashboard } from './pages/Dashboard'
@@ -20,6 +20,7 @@ import { PersonDetail } from './pages/PersonDetail'
 import { EntityProfile, OwnerProfile } from './pages/Profiles'
 import { Quotes } from './pages/Quotes'
 import { Agenda } from './pages/Agenda'
+import { Clients } from './pages/Clients'
 
 const NAV: [string, string, string][] = [
   ['', 'Início', 'home'],
@@ -28,8 +29,15 @@ const NAV: [string, string, string][] = [
   ['obras', 'Obras', 'building'],
   ['orcamentos', 'Orçamentos', 'file'],
   ['equipe', 'Equipe', 'users'],
+  ['clientes', 'Clientes', 'school'],
   ['cadastros', 'Empresas', 'briefcase'],
   ['config', 'Ajustes', 'settings'],
+]
+const GROUPS: [string, string[]][] = [
+  ['hoje', ['', 'agenda']],
+  ['dinheiro', ['financeiro', 'orcamentos']],
+  ['obras e pessoas', ['obras', 'equipe', 'clientes']],
+  ['cadastros', ['cadastros', 'config']],
 ]
 // no celular: 4 atalhos + "Mais"
 const MOBILE = ['', 'financeiro', 'obras', 'equipe']
@@ -47,12 +55,10 @@ function Shell() {
   const { data, setSettings, sync, savedAt, userEmail, demo, setDemo } = useStore()
   const [theme, setTheme] = useTheme()
   const [tx, setTx] = useState<Partial<Tx> | null>(null)
-  const [menu, setMenu] = useState(false)
+  const [menu, setMenu] = useState<false | 'side' | 'top'>(false)
   const [more, setMore] = useState(false)
-  const [meOpen, setMeOpen] = useState(false)
-  const [layout, setLayoutState] = useState<Layout>(readLayout)
-  const setLayout = (l: Layout) => { setLayoutState(l); saveLayout(l) }
-  const switchLayout = () => { const l: Layout = layout === 'novo' ? 'classico' : 'novo'; setLayout(l); toast(l === 'novo' ? 'Layout novo ligado' : 'Layout antigo ligado') }
+  const layout: Layout = 'classico'
+  const setLayout = () => {}
   const scope = data.settings.scope
   // as empresas ficam sempre juntas: um CNPJ sozinho no topo volta para "Empresa"
   const companyScope = data.entities.some((e) => e.id === scope && e.kind === 'empresa')
@@ -83,6 +89,7 @@ function Shell() {
   else if (page === 'perfil') content = <OwnerProfile />
   else if (page === 'orcamentos') content = <Quotes id={route[1]} />
   else if (page === 'agenda') content = <Agenda />
+  else if (page === 'clientes') content = <Clients />
   else content = <Dashboard onNewTx={setTx} />
 
   const newTx = (kind: Tx['kind']) => { setMenu(false); setTx({ kind }) }
@@ -98,10 +105,10 @@ function Shell() {
       </div>
     </div>
   )
-  const launcher = (
+  const launcher = (where: 'side' | 'top') => (
     <div className="new-wrap">
-      <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>
-      {menu && (
+      <button className="btn primary" onClick={() => setMenu((m) => (m === where ? false : where))} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>
+      {menu === where && (
         <>
           <div className="menu-backdrop" onClick={() => setMenu(false)} />
           <div className="menu" role="menu">
@@ -143,7 +150,6 @@ function Shell() {
             {NAV.filter(([k]) => !MOBILE.includes(k)).map(([k, l, i]) => (
               <a key={k} href={`#/${k}`} onClick={() => setMore(false)}><span className="nav-i"><Icon name={i} /></span>{l}</a>
             ))}
-            <button className="sheet-row" onClick={() => { setMore(false); switchLayout() }}><span className="nav-i"><Icon name="swap" /></span>{layout === 'novo' ? 'Usar layout antigo' : 'Usar layout novo'}</button>
             {tools}
           </div>
         </>
@@ -153,51 +159,6 @@ function Shell() {
   )
   const name = shortName(data.settings.profile?.fullName) || data.settings.owner || 'Gestão'
   const ini = initials(data.settings.profile?.fullName || data.settings.owner || 'RV')
-
-  if (layout === 'novo') {
-    const MAIN = NAV.filter(([k]) => !['cadastros', 'config'].includes(k))
-    return (
-      <LayoutCtx.Provider value={{ layout, setLayout }}>
-        <div className="app2">
-          <header className="nav2">
-            <a className="nav2-brand" href="#/"><span className="brand-mark">{ini}</span><span><b>{name}</b><small>gestão de obras</small></span></a>
-            <nav className="nav2-links">
-              {MAIN.map(([k, l, i]) => (
-                <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><Icon name={i} size={18} /><span>{l}</span></a>
-              ))}
-            </nav>
-            <div className="nav2-right">
-              {launcher}
-              <div className="new-wrap">
-                <button className="nav2-me" onClick={() => setMeOpen((v) => !v)} aria-haspopup="menu" aria-label="Meu menu">
-                  {data.settings.profile?.photo ? <img src={data.settings.profile.photo} alt="" /> : ini}
-                </button>
-                {meOpen && (
-                  <>
-                    <div className="menu-backdrop" onClick={() => setMeOpen(false)} />
-                    <div className="menu me-menu" role="menu" onClick={() => setMeOpen(false)}>
-                      <div className="me-head"><b>{name}</b><small>{userEmail || data.settings.profile?.email}</small><small className="me-sync"><span className={`sync-dot ${sync}`} />{syncText}</small></div>
-                      <a href="#/perfil"><span className="mi"><Icon name="user" size={18} /></span>Meu perfil</a>
-                      <a href="#/cadastros"><span className="mi"><Icon name="briefcase" size={18} /></span>Empresas e contas</a>
-                      <a href="#/config"><span className="mi"><Icon name="settings" size={18} /></span>Ajustes</a>
-                      <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><span className="mi"><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} /></span>{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</button>
-                      <button onClick={toggleDemo}><span className="mi"><Icon name={demo ? 'eyeOff' : 'eye'} size={18} /></span>{demo ? 'Esconder o exemplo' : 'Ver exemplo preenchido'}</button>
-                      <button onClick={switchLayout}><span className="mi"><Icon name="swap" size={18} /></span>Usar layout antigo</button>
-                      {CLOUD && <button onClick={async () => { if (await confirmDialog('Sair da conta neste aparelho?', 'Sair', false)) signOut() }}><span className="mi out"><Icon name="logout" size={18} /></span>Sair</button>}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </header>
-          <div className="sub2">{scopeSeg}</div>
-          {bars}
-          <main className="content2">{content}</main>
-          {mobile}
-        </div>
-      </LayoutCtx.Provider>
-    )
-  }
 
   return (
     <LayoutCtx.Provider value={{ layout, setLayout }}>
@@ -210,12 +171,21 @@ function Shell() {
             <small>{data.settings.profile?.profession || 'Engenharia'} · gestão</small>
           </div>
         </div>
+        <div className="side-actions">
+          {launcher('side')}
+          {scopeSeg}
+        </div>
         <nav>
-          {NAV.map(([k, l, i]) => (
-            <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}>
-              <span className="nav-i"><Icon name={i} /></span>
-              {l}
-            </a>
+          {GROUPS.map(([g, keys]) => (
+            <div key={g} className="nav-group">
+              <span className="nav-label">{g}</span>
+              {NAV.filter(([k]) => keys.includes(k)).map(([k, l, i]) => (
+                <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}>
+                  <span className="nav-i"><Icon name={i} /></span>
+                  {l}
+                </a>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="side-foot">
@@ -224,7 +194,6 @@ function Shell() {
             <span>{name.toLowerCase()}<small>{userEmail || data.settings.profile?.email || 'meu perfil'}</small></span>
           </a>
           <div className="sync"><span className={`sync-dot ${sync}`} />{syncText}</div>
-          <button className="layout-switch" onClick={switchLayout}><Icon name="swap" size={15} /> experimentar o layout novo</button>
           {tools}
         </div>
       </aside>
@@ -232,7 +201,7 @@ function Shell() {
       <div className="main">
         <header className="topbar">
           {scopeSeg}
-          {launcher}
+          {launcher('top')}
         </header>
         {bars}
         <main className="content">{content}</main>
