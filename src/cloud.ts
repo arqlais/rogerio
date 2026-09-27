@@ -10,6 +10,8 @@ const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https:
 const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'sb_publishable_uqo6nAVMS7iZsidCPNQRhg_YA9RNaYA'
 
 // VITE_LOCAL=1 (testes) força o modo só no navegador
+/** Identificador do projeto no Supabase (para abrir o SQL Editor certo). */
+export const PROJECT_REF = url.replace(/^https?:\/\//, '').split('.')[0]
 export const CLOUD = !ARTIFACT && import.meta.env.VITE_LOCAL !== '1' && !!url && !!key
 export const supabase = CLOUD ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } }) : null
 

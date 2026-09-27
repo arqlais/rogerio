@@ -39,13 +39,18 @@ No GitHub: **Settings → Pages → Source: GitHub Actions**. Endereço: `https:
 
 ## Login e dados na nuvem (Supabase)
 
-Por padrão usa o mesmo projeto Supabase do Controle da Laís, numa tabela separada (`engenharia`). Cada usuário só vê os próprios dados (RLS).
+Recomendado: um **projeto Supabase só do Rogério** (grátis), separado do Controle da Laís.
 
-1. No Supabase do projeto: **SQL Editor → New query**, cole [`supabase/schema.sql`](supabase/schema.sql) e clique **Run** (cria a tabela `engenharia` e a pasta privada `documentos` para as notas). Se esquecer, o próprio sistema mostra o SQL com um botão para copiar.
-2. **Authentication → Users → Add user**: e-mail e senha do Rogério, marcando *Auto Confirm User*.
-3. **Authentication → URL Configuration**: adicione `https://arqlais.github.io/rogerio/` em *Redirect URLs* (para o "esqueci minha senha").
+1. Em [supabase.com](https://supabase.com) → **New project** (região São Paulo), nome `rogerio`.
+2. **SQL Editor → New query**: cole [`supabase/schema.sql`](supabase/schema.sql) e clique **Run** (cria a tabela `engenharia` e a pasta privada `documentos` para as notas).
+3. **Authentication → Users → Add user**: e-mail e senha do Rogério, marcando *Auto Confirm User*.
+4. **Authentication → Sign In / Providers**: desligue *Allow new users to sign up*.
+5. **Authentication → URL Configuration**: *Site URL* = `https://arqlais.github.io/rogerio/`.
+6. **Project Settings → API**: copie a *Project URL* e a chave *anon/publishable*.
+7. No GitHub do `rogerio`: **Settings → Secrets and variables → Actions → aba Variables** → crie `SUPABASE_URL` e `SUPABASE_ANON_KEY`.
+8. **Actions → Publicar no GitHub Pages → Run workflow**.
 
-Para usar outro projeto Supabase, crie as variáveis `SUPABASE_URL` e `SUPABASE_ANON_KEY` em **Settings → Secrets and variables → Actions → Variables**.
+Sem essas variáveis, o site usa o projeto Supabase do Controle (tabela separada `engenharia`, cada usuário só vê os próprios dados). Se a tabela não existir, o próprio sistema mostra o SQL com botão de copiar e o link do projeto certo.
 
 ## Stack
 

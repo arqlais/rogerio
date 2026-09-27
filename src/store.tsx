@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { CLOUD, fetchRemote, pushRemote } from './cloud'
+import { CLOUD, PROJECT_REF, fetchRemote, pushRemote } from './cloud'
 import { ARTIFACT } from './env'
 import { setFilesUser } from './files'
 import schemaSql from '../supabase/schema.sql?raw'
@@ -317,7 +317,7 @@ function CloudSetup({ error }: { error: string }) {
         {missing ? (
           <ol>
             <li>Clique em <b>Copiar SQL</b>.</li>
-            <li>Abra o <a className="link" href="https://supabase.com/dashboard/project/_/sql/new" target="_blank" rel="noreferrer">SQL Editor do Supabase</a> (projeto do Controle), cole e clique em <b>Run</b>.</li>
+            <li>Abra o <a className="link" href={`https://supabase.com/dashboard/project/${PROJECT_REF}/sql/new`} target="_blank" rel="noreferrer">SQL Editor do Supabase</a> (projeto <b>{PROJECT_REF}</b>), cole e clique em <b>Run</b>.</li>
             <li>Volte aqui e clique em <b>Tentar de novo</b>.</li>
           </ol>
         ) : <p className="muted">Verifique a internet e tente de novo.</p>}
