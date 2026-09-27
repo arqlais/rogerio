@@ -7,7 +7,6 @@ const html = readFileSync(`${dir}/index.html`, 'utf8')
 const css = [...html.matchAll(/<link rel="stylesheet"[^>]*href="\.\/([^"]+)"/g)].map((m) => readFileSync(`${dir}/${m[1]}`, 'utf8')).join('\n')
 const js = [...html.matchAll(/<script type="module"[^>]*src="\.\/([^"]+)"/g)].map((m) => readFileSync(`${dir}/${m[1]}`, 'utf8')).join('\n')
 const out = `<title>Gestão Rogério</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>${css}</style>
 <div id="root"></div>
 <script type="module">${js.replace(/<\/script/gi, '<\\/script')}</script>

@@ -86,6 +86,14 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   const results = Array.from({ length: 6 }, (_, i) => monthSummary(data, addMonth(ym, i - 5), scope).result)
   const hour = new Date().getHours()
   const hello = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
+  const longDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const weekEnd = addDays(t, 7)
+  const payWeek = toPay.filter((x) => x.due <= weekEnd)
+  const recWeek = toReceive.filter((x) => x.due <= weekEnd)
+  const weekLine = [
+    payWeek.length ? `${payWeek.length} conta${payWeek.length > 1 ? 's' : ''} para pagar esta semana (${money(sum(payWeek))})` : 'nenhuma conta para pagar esta semana',
+    recWeek.length ? `${money(sum(recWeek))} a receber` : '',
+  ].filter(Boolean).join(' · ')
   const lateOut = late.filter((x) => x.kind === 'out')
   const lateIn = late.filter((x) => x.kind === 'in')
 
@@ -93,8 +101,9 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
     <div className="page">
       <section className="hero">
         <div className="hero-main">
-          <span className="hero-eyebrow">{ent ? <><EntityMark e={ent} size={20} /> {ent.name}</> : 'Todas as empresas e pessoal'} · {monthName(ym)}</span>
-          <h1 className="hero-title">{hello}, <em>{data.settings.owner || 'Rogério'}.</em></h1>
+          <span className="hero-eyebrow">{ent && <><EntityMark e={ent} size={18} /> {ent.name} ·</>} {longDate}</span>
+          <h1 className="hero-title"><span className="hello">{hello.toLowerCase()},</span> <b>{(data.settings.owner || 'Rogério').toLowerCase()}</b></h1>
+          <p className="hero-sub">{weekLine}</p>
           <div className="hero-balance">
             <span>Saldo hoje nas contas</span>
             <strong className={balance < 0 ? 'neg' : ''}>{money(balance)}</strong>

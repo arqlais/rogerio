@@ -20,10 +20,10 @@
   --side: #172a4d;
   --side-2: #1d3461;
   --radius: 18px;
-  --display: 'Bricolage Grotesque', 'Figtree', 'Segoe UI', sans-serif;
+  --display: 'Manrope Variable', 'Manrope', 'Segoe UI', sans-serif;
   --chart-1: #3563b8;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
-  font-family: 'Figtree', 'Segoe UI', Roboto, system-ui, sans-serif;
+  font-family: 'Manrope Variable', 'Manrope', 'Segoe UI', Roboto, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--bg);
@@ -36,7 +36,7 @@ body.modal-open { overflow: hidden; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3 { margin: 0; line-height: 1.25; }
 h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; text-wrap: balance; }
-h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.035em; }
+h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
 h2 { font-size: 19px; font-weight: 700; }
 h3 { font-weight: 600; }
 h3 { font-size: 16px; }
@@ -561,9 +561,12 @@ input, select, textarea { font: inherit; color: var(--ink); }
   background-image: radial-gradient(120% 140% at 100% 0%, rgba(240, 138, 44, 0.28), transparent 55%), linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
   background-size: auto, 26px 26px, 26px 26px; }
 .hero-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1 1 320px; }
-.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; font-weight: 600; color: #e6ebf5; }
-.hero-title { font-size: clamp(34px, 5vw, 52px); line-height: 1; font-weight: 800; letter-spacing: -0.045em; color: #fff; margin: 4px 0 6px; }
-.hero-title em { font-style: normal; color: var(--accent); }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; font-size: 14px; font-weight: 700; letter-spacing: 0.06em; color: #9fb0cc; }
+.hero-title { font-size: clamp(36px, 5.2vw, 56px); line-height: 1.02; color: #fff; margin: 2px 0 2px; letter-spacing: -0.035em; }
+.hero-title .hello { font-weight: 300; color: #f3b27a; letter-spacing: -0.03em; }
+.hero-title b { font-weight: 800; }
+.hero-sub { color: #c9d3e6; font-size: 16px; margin: 0 0 8px; }
+.hero-sub b { color: #fff; font-weight: 700; }
 .hero-balance { display: flex; flex-direction: column; gap: 2px; }
 .hero-balance span { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #aebbd4; font-weight: 600; }
 .hero-balance strong { font-family: var(--display); font-size: clamp(32px, 4.4vw, 46px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; }
@@ -608,7 +611,7 @@ button.kpi:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rg
 .chart .zero { stroke: var(--bad); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.6; }
 .spark .zero { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart .cross { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 3; }
-.chart .axis { font-size: 12px; fill: var(--muted); font-family: 'Figtree', sans-serif; }
+.chart .axis { font-size: 12px; fill: var(--muted); font-family: 'Manrope Variable', 'Manrope', sans-serif; }
 .tip { position: absolute; top: 0; transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; white-space: nowrap; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); z-index: 5; }
 .tip .pos { color: #7fe0b0; }
 .tip .neg, .tip b.neg { color: #ffaaa0; }

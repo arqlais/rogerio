@@ -12,6 +12,7 @@
     "test:smoke": "VITE_LOCAL=1 vite build --outDir dist-test --emptyOutDir && node tests/smoke.mjs dist-test"
   },
   "dependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
     "@supabase/supabase-js": "^2.117.2",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
