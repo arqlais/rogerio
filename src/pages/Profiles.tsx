@@ -119,7 +119,7 @@ export function EntityProfile({ id }: { id: string }) {
   )
 }
 
-export function EntityForm({ initial, onClose }: { initial: Partial<Entity>; onClose: () => void }) {
+export function EntityForm({ initial, onClose, onSaved }: { initial: Partial<Entity>; onClose: () => void; onSaved?: (e: Entity) => void }) {
   const { data, save, saveMany, remove } = useStore()
   const editing = !!initial.id && data.entities.some((x) => x.id === initial.id)
   const [e, setE] = useState<Entity>(() => ({ id: uid(), name: '', kind: 'empresa', color: COLORS[data.entities.length % COLORS.length], favorite: true, ...initial }))
@@ -131,7 +131,8 @@ export function EntityForm({ initial, onClose }: { initial: Partial<Entity>; onC
     if (!editing) saveMany('accounts', [{ id: uid(), entityId: e.id, name: company ? `Conta ${e.name.trim()}` : 'Conta pessoal', initial: 0, initialDate: today() }])
     toast(editing ? 'Dados salvos' : 'Empresa cadastrada')
     onClose()
-    if (!editing) go(`/empresa/${e.id}`)
+    if (onSaved) onSaved({ ...e, name: e.name.trim() })
+    else if (!editing) go(`/empresa/${e.id}`)
   }
   const del = async () => {
     const used = data.txs.some((t) => t.entityId === e.id || t.toEntityId === e.id) || data.projects.some((p) => p.entityId === e.id) || data.quotes.some((q) => q.entityId === e.id)

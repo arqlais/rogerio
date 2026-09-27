@@ -11,6 +11,21 @@ export interface FileRef {
   path?: string // caminho no Supabase Storage (sem isso, está no aparelho)
 }
 
+/** Medidas em pontos (pt) da folha A4 (595 × 842), tiradas dos modelos originais. */
+export interface QuoteTheme {
+  font: 'calibri' | 'arial'
+  heading: string // cor dos títulos "1. ORÇAMENTO DESTINADO A:"
+  headingSize: number
+  labelFont?: 'calibri' | 'arial'
+  labelSize: number
+  logo: [number, number, number, number] // x, y, largura, altura
+  top: number // onde começa o primeiro título
+  footer?: [number, number, number, number]
+  wm?: [number, number, number, number]
+  wmOpacity?: number
+  variant?: 'padrao' | 'quira'
+}
+
 /** Carteira: cada empresa (CNPJ) ou a pessoa física (finanças pessoais). */
 export interface Entity {
   id: string
@@ -24,6 +39,7 @@ export interface Entity {
   stateReg?: string // inscrição estadual
   logo?: string // imagem (data URL) usada nos orçamentos e recibos
   mark?: string // símbolo quadrado do logo (botões e listas)
+  quoteTheme?: QuoteTheme // como o papel timbrado dos orçamentos é montado (igual ao modelo da empresa)
   footer?: string // imagem do rodapé do papel timbrado
   watermark?: string // marca-d'água do fundo
   tagline?: string // frase do rodapé (atividades)

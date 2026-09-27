@@ -4,7 +4,7 @@ import { buildICS } from './ics'
 import { ARTIFACT } from './env'
 import { setFilesUser } from './files'
 import schemaSql from '../supabase/schema.sql?raw'
-import type { Category, Collection, Data, Entity, Settings } from './types'
+import type { Category, Collection, Data, Entity, QuoteTheme, Settings } from './types'
 import { BRAND_ASSETS } from './brandAssets'
 import { addDays, addMonths, setCompanyIds, today, uid } from './utils'
 
@@ -28,6 +28,13 @@ export const DEFAULT_CATEGORIES = (): Category[] => [
 export const DEFAULT_SETTINGS: Settings = { owner: 'Rogério', scope: 'empresa', payday: 5, weekStart: 1 }
 const withProfile = (s: Settings): Settings => ({ ...s, profile: { ...DEFAULT_PROFILE, ...(s.profile ?? {}) } })
 
+/** Papel timbrado de cada empresa, medido nos orçamentos originais (pontos da folha A4). */
+export const THEMES: Record<string, QuoteTheme> = {
+  rdl: { font: 'calibri', heading: '#ff8216', headingSize: 11, labelSize: 10, logo: [175, 33, 245, 88], top: 156, footer: [41, 719, 513, 74], wm: [121, 243, 354, 391], wmOpacity: 1 },
+  engforte: { font: 'arial', heading: '#538135', headingSize: 12, labelSize: 9, logo: [142, 28, 311, 81], top: 135, footer: [62, 775, 465, 51], wm: [85, 259, 425, 288], wmOpacity: 1 },
+  quira: { font: 'calibri', heading: '#000000', headingSize: 10.6, labelSize: 10, logo: [107, 13, 355, 116], top: 149, wm: [60, 256, 475, 384], wmOpacity: 1, variant: 'quira' },
+}
+
 /** Dados das empresas (tirados dos orçamentos, NF, contrato e placa de obra). Tudo editável no perfil da empresa. */
 const COMPANIES: Omit<Entity, 'id'>[] = [
   {
@@ -36,6 +43,7 @@ const COMPANIES: Omit<Entity, 'id'>[] = [
     address: 'Rua dos Missionários, 211', district: 'Jardim Santo André', city: 'Santo André – SP',
     phone: '(11) 97467-5293', email: 'quira.construcoes@gmail.com', contactName: 'Dinéia',
     tagline: 'QUIRA - Prestadora Eficiente em Construções e Reformas (Projetos, Laudos Técnicos e Perícias)',
+    quoteTheme: THEMES.quira,
     ...BRAND_ASSETS.quira,
   },
   {
@@ -46,6 +54,7 @@ const COMPANIES: Omit<Entity, 'id'>[] = [
     responsible: 'Eng. Rogério Francisco Vieira – CREA-SP 5070438360',
     bank: 'Nu Pagamentos S.A. – Banco 260 – Agência 0001 – Conta 43520212-8', pix: 'roger.rdl76@yahoo.com.br',
     tagline: 'ENGENHARIA E REPRESENTAÇÕES - CONSTRUÇÕES E REFORMAS - COMÉRCIO VAREJISTA E ATACADISTA',
+    quoteTheme: THEMES.rdl,
     ...BRAND_ASSETS.rdl,
   },
   {
@@ -53,6 +62,7 @@ const COMPANIES: Omit<Entity, 'id'>[] = [
     legalName: 'ENGFORTE Construção e Empreendimento LTDA', doc: '53.059.975/0001-51',
     address: 'Rua dos Missionários, 227', district: 'Jardim Santo André', city: 'Santo André – SP',
     phone: '(11) 95123-3515', email: 'comercial.engforte@gmail.com', contactName: 'Laís',
+    quoteTheme: THEMES.engforte,
     ...BRAND_ASSETS.engforte,
   },
   { name: 'AV', kind: 'empresa', color: '#8a4fbf' },
@@ -70,7 +80,7 @@ export function emptyData(): Data {
     { id: uid(), name: 'Pessoal', kind: 'pessoal', doc: DEFAULT_PROFILE.cpf, color: '#5b6573', favorite: true },
   ]
   return {
-    version: 3,
+    version: 4,
     entities,
     accounts: entities.map((e) => ({ id: uid(), entityId: e.id, name: e.kind === 'pessoal' ? 'Conta pessoal' : `Conta ${e.name}`, initial: 0, initialDate: start })),
     projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [],
@@ -191,6 +201,10 @@ function normalize(raw: Partial<Data>): Data {
         return def && !e.mark ? { ...e, mark: def.mark, logo: e.logo ?? def.logo } : e
       }),
     }
+  }
+  // versão 3 → 4: papel timbrado medido nos modelos originais
+  if ((raw.version ?? 1) < 4 && raw.entities) {
+    raw = { ...raw, version: 4, entities: raw.entities.map((e) => { const k = e.name.toLowerCase().replace('engefort', 'engforte'); return THEMES[k] && !e.quoteTheme ? { ...e, quoteTheme: THEMES[k] } : e }) }
   }
   return {
     ...base,

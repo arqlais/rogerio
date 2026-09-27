@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fmtDateShort, money, moneyShort } from '../utils'
 
 /** Cores de categoria em ordem fixa (validadas para daltonismo). A 6ª posição é sempre "Outros". */
@@ -8,9 +8,18 @@ export const OTHER = '#a3acbb'
 /** Área do saldo previsto dia a dia, com linha de hoje e dica ao passar o dedo/mouse. */
 export function ForecastChart({ points, height = 190 }: { points: { date: string; value: number; ins: number; outs: number }[]; height?: number }) {
   const ref = useRef<SVGSVGElement>(null)
+  const wrap = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<number | null>(null)
+  const [cw, setCw] = useState(640)
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setCw(Math.max(280, el.clientWidth)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   if (points.length < 2) return null
-  const W = 640, H = height, padL = 8, padR = 8, padT = 16, padB = 26
+  const W = cw, H = height, padL = 8, padR = 8, padT = 16, padB = 26
   const vals = points.map((p) => p.value)
   let min = Math.min(0, ...vals), max = Math.max(...vals, 1)
   const span = max - min || 1
@@ -30,7 +39,7 @@ export function ForecastChart({ points, height = 190 }: { points: { date: string
   }
   const h = hover !== null ? points[hover] : null
   return (
-    <div className="chart-wrap">
+    <div className="chart-wrap" ref={wrap}>
       <svg ref={ref} viewBox={`0 0 ${W} ${H}`} className="chart" onPointerMove={onMove} onPointerLeave={() => setHover(null)} role="img" aria-label="Saldo previsto para os próximos dias">
         <defs>
           <linearGradient id="fc-fill" x1="0" x2="0" y1="0" y2="1">

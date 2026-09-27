@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
-import type { Data, Entity, Quote, QuoteItem } from '../types'
+import type { Data, Entity, Quote, QuoteItem, QuoteTheme } from '../types'
+import carlito400 from '@fontsource/carlito/files/carlito-latin-400-normal.woff2?inline'
+import carlito700 from '@fontsource/carlito/files/carlito-latin-700-normal.woff2?inline'
+import arimo400 from '@fontsource/arimo/files/arimo-latin-400-normal.woff2?inline'
+import arimo700 from '@fontsource/arimo/files/arimo-latin-700-normal.woff2?inline'
 import { Attachments } from '../components/Attachments'
+import { Icon } from '../components/Icon'
+import { EntityForm } from './Profiles'
 import { Badge, EntityMark, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
 import { downloadPdf } from '../pdf'
 import { ownedBy, addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
@@ -106,10 +112,12 @@ function QuoteList() {
 
 function QuoteEditor({ id }: { id: string }) {
   const { data, save, remove, setSettings } = useStore()
+  const [entForm, setEntForm] = useState<Partial<Entity> | null>(null)
   const q = data.quotes.find((x) => x.id === id)
   if (!q) return <div className="page"><Empty title="Orçamento não encontrado" action={<a className="btn" href="#/orcamentos">Voltar</a>} /></div>
   const pdde = q.model === 'pdde'
   const ent = data.entities.find((e) => e.id === q.entityId)
+  const entFormEl = entForm && <EntityForm initial={entForm} onClose={() => setEntForm(null)} onSaved={(e) => { if (!entForm.id) changeEntity(e.id) }} />
   const set = (x: Partial<Quote>) => save('quotes', { ...q, ...x })
   const setItem = (iid: string, x: Partial<QuoteItem>) => set({ items: q.items.map((i) => (i.id === iid ? { ...i, ...x } : i)) })
   const addItem = (group?: string) => set({ items: [...q.items, { id: uid(), group: pdde ? undefined : group ?? q.items[q.items.length - 1]?.group, description: '', unit: pdde ? '' : 'm²', qty: pdde ? 0 : 1, price: 0 }] })
@@ -174,18 +182,30 @@ function QuoteEditor({ id }: { id: string }) {
       <div className="q-layout">
       <div className="q-form">
       <section className="card">
-        <div className="grid-form three">
-          <Field label="Empresa que está orçando">
-            <select value={q.entityId} onChange={(e) => changeEntity(e.target.value)} aria-label="Empresa do orçamento">
-              {data.entities.filter((e) => e.kind === 'empresa').map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
+        <div className="card-head"><h2>Dados</h2></div>
+        <div className="q-top">
+          <Field label="Empresa que está orçando" hint="O papel timbrado, o CNPJ e o nome do PDF vêm desta empresa.">
+            <div className="row">
+              <select value={q.entityId} onChange={(e) => changeEntity(e.target.value)} aria-label="Empresa do orçamento" style={{ flex: 1 }}>
+                {data.entities.filter((e) => e.kind === 'empresa').map((e) => <option key={e.id} value={e.id}>{e.name}{e.doc ? ` · ${e.doc}` : ''}</option>)}
+              </select>
+              <button className="btn icon-only" onClick={() => setEntForm(ent ?? {})} title="Editar dados da empresa" aria-label="Editar dados da empresa"><Icon name="pencil" size={17} /></button>
+              <button className="btn icon-only" onClick={() => setEntForm({})} title="Cadastrar nova empresa" aria-label="Cadastrar nova empresa"><Icon name="plus" size={17} /></button>
+            </div>
           </Field>
-          <Field label="Modelo">
-            <select value={q.model ?? 'padrao'} onChange={(e) => set({ model: e.target.value as Quote['model'] })} aria-label="Modelo">
-              <option value="pdde">Escola – PDDE (APM)</option><option value="padrao">Orçamento comum</option>
-            </select>
+          <Field label="Nº e data" hint="Vão no PDF, no nome do arquivo e na lista.">
+            <div className="row">
+              <input value={q.number} onChange={(e) => set({ number: e.target.value })} aria-label="Número" style={{ width: 110 }} />
+              <input type="date" value={q.date} onChange={(e) => set({ date: e.target.value })} aria-label="Data de emissão" style={{ flex: 1 }} />
+            </div>
           </Field>
-          <Field label="Número"><input value={q.number} onChange={(e) => set({ number: e.target.value })} aria-label="Número" /></Field>
+        </div>
+        <div className="q-model">
+          <span className="field-label">Modelo</span>
+          <div className="seg">
+            <button className={pdde ? 'on' : ''} onClick={() => set({ model: 'pdde' })}>Escola (PDDE / APM)</button>
+            <button className={!pdde ? 'on' : ''} onClick={() => set({ model: 'padrao' })}>Orçamento comum</button>
+          </div>
         </div>
       </section>
 
@@ -218,7 +238,6 @@ function QuoteEditor({ id }: { id: string }) {
               <div className="kv"><span>Telefone</span><b>{ent?.phone || '—'}</b></div>
             </div>
             <div className="grid-form four" style={{ marginTop: 12 }}>
-              <Field label="Data de emissão"><input type="date" value={q.date} onChange={(e) => set({ date: e.target.value })} aria-label="Data de emissão" /></Field>
               <Field label="Validade (dias)"><NumInput value={q.validDays} min={1} onChange={(v) => set({ validDays: v })} ariaLabel="Validade" /></Field>
               <Field label="Pessoa responsável"><input value={q.contactName ?? ''} onChange={(e) => set({ contactName: e.target.value })} aria-label="Pessoa responsável" /></Field>
               <Field label="Condição de pagamento">
@@ -257,7 +276,6 @@ function QuoteEditor({ id }: { id: string }) {
           <section className="card">
             <div className="grid-form three">
               <Field label="Cliente" span={2}><input value={q.client} onChange={(e) => set({ client: e.target.value })} placeholder="Nome do cliente" aria-label="Cliente" /></Field>
-              <Field label="Data"><input type="date" value={q.date} onChange={(e) => set({ date: e.target.value })} aria-label="Data" /></Field>
               <Field label="Serviço / objeto" span={2}><input value={q.title} onChange={(e) => set({ title: e.target.value })} placeholder="Ex.: Reforma da cobertura e pintura geral" aria-label="Objeto" /></Field>
               <Field label="CPF / CNPJ do cliente"><input value={q.clientDoc ?? ''} onChange={(e) => set({ clientDoc: e.target.value })} aria-label="Documento do cliente" /></Field>
               <Field label="Local da obra" span={2}><input value={q.address ?? ''} onChange={(e) => set({ address: e.target.value })} aria-label="Local da obra" /></Field>
@@ -334,6 +352,7 @@ function QuoteEditor({ id }: { id: string }) {
         <small className="muted">Pré-visualização do PDF · papel timbrado da {ent?.name}</small>
       </aside>
       </div>
+      {entFormEl}
     </div>
   )
 }
@@ -370,43 +389,56 @@ const esc = (s = '') => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;'
 const nl = (s = '') => esc(s).replace(/\n/g, '<br>')
 const num = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-/** Papel timbrado da empresa: logo no topo, marca-d'água e rodapé. */
+/** Papel timbrado da empresa, montado em pontos (pt) da folha A4 igual aos modelos originais:
+ *  logo, marca-d'água e rodapé nas mesmas posições, Calibri (Carlito) ou Arial (Arimo), títulos na cor da empresa. */
 export function letterhead(e: Entity | undefined, body: string, title: string) {
-  const color = e?.color ?? '#333'
-  const footer = e?.footer
-    ? `<img class="foot-img" src="${e.footer}" alt="">`
-    : `<div class="foot-txt">${e?.tagline ? `<b>${esc(e.tagline)}</b><br>` : ''}${[e?.doc && `CNPJ ${esc(e.doc)}`, e?.phone && esc(e.phone), e?.email && esc(e.email)].filter(Boolean).join('  |  ')}</div>`
+  const th: QuoteTheme = e?.quoteTheme ?? { font: 'calibri', heading: e?.color ?? '#333', headingSize: 11, labelSize: 10, logo: [148, 30, 300, 90], top: 150 }
+  const fam = (f?: string) => (f === 'arial' ? "Arimo, Arial, Helvetica, sans-serif" : "Carlito, Calibri, 'Segoe UI', sans-serif")
+  const box = (b?: number[]) => (b ? `left:${b[0]}pt;top:${b[1]}pt;width:${b[2]}pt;height:${b[3]}pt` : '')
+  let footer = ''
+  if (e?.footer) footer = `<img class="foot-img" style="${box(th.footer ?? [41, 719, 513, 74])}" src="${e.footer}" alt="">`
+  else {
+    const [brand, rest] = (e?.tagline ?? '').includes(' - ') ? [e!.tagline!.split(' - ')[0], e!.tagline!.split(' - ').slice(1).join(' - ')] : ['', e?.tagline ?? '']
+    footer = `<div class="foot-txt">${brand ? `<b class="brand">${esc(brand)} -</b> ` : ''}${esc(rest)}<br>${[e?.doc && `CNPJ ${esc(e.doc)}`, e?.email && esc(e.email)].filter(Boolean).join('&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;')}</div>`
+  }
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
+@font-face{font-family:Carlito;font-weight:400;src:url(${carlito400}) format('woff2')}
+@font-face{font-family:Carlito;font-weight:700;src:url(${carlito700}) format('woff2')}
+@font-face{font-family:Arimo;font-weight:400;src:url(${arimo400}) format('woff2')}
+@font-face{font-family:Arimo;font-weight:700;src:url(${arimo700}) format('woff2')}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;color:#111;font-size:12.5px;background:#e9eaee}
-.sheet{width:210mm;min-height:297mm;margin:12px auto;background:#fff;position:relative;padding:12mm 16mm 34mm;box-shadow:0 2px 12px rgba(0,0,0,.15)}
-.logo{text-align:center;margin-bottom:8mm}.logo img{max-height:26mm;max-width:120mm}
-.logo b{font-size:30px;color:${color}}
-.wm{position:absolute;inset:60mm 18mm 50mm;background:url('${e?.watermark ?? ''}') center/contain no-repeat;opacity:${e?.watermark ? 0.55 : 0};pointer-events:none}
-.content{position:relative}
-h2{color:${color};font-size:14px;margin:7mm 0 3mm;font-weight:700;text-transform:uppercase}
-h2 span{margin-right:6px}
-p{line-height:1.5}
+body{font-family:${fam(th.font)};color:#000;font-size:10pt;background:#e9eaee}
+.sheet{width:595pt;height:842pt;margin:12px auto;background:#fff;position:relative;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.logo{position:absolute;${box(th.logo)};display:flex;align-items:center;justify-content:center}
+.logo img{max-width:100%;max-height:100%;object-fit:contain}
+.logo b{font-size:28pt;color:${th.heading}}
+.wm{position:absolute;${box(th.wm)};background:url('${e?.watermark ?? ''}') center/contain no-repeat;opacity:${e?.watermark && th.wm ? th.wmOpacity ?? 1 : 0}}
+.content{position:absolute;left:85pt;top:${th.top}pt;width:425pt}
+h2{font-family:${fam(th.font)};color:${th.heading};font-size:${th.headingSize}pt;margin:0 0 9pt 18pt;font-weight:700;text-transform:uppercase;line-height:1.2}
+h2 span{display:inline-block;min-width:18pt}
+table+h2{margin-top:25pt}
+p{line-height:1.45;margin:6pt 0}
 table{width:100%;border-collapse:collapse;background:transparent}
-td,th{border:1px solid #333;padding:3px 6px;vertical-align:middle}
-.info td:first-child{width:50%;font-weight:700}
-.items th{font-weight:700;text-align:center;font-size:12px}
-.items td.n{width:22px;text-align:center}.items td.c{text-align:center}.items td.r{text-align:right;white-space:nowrap}
-.items tr.tot td{font-weight:700}
-.stamp{margin-top:14mm;margin-left:auto;width:85mm;height:38mm;border:1px dashed #bbb;border-radius:4px;display:flex;align-items:flex-end;justify-content:center;color:#999;font-size:10.5px;padding:4px}
-.foot{position:absolute;left:16mm;right:16mm;bottom:8mm;text-align:center}
-.foot-img{width:100%;max-height:26mm;object-fit:contain}
-.foot-txt{border-top:2px solid ${color};padding-top:4px;font-size:10.5px;color:#333}
-.bar{position:fixed;top:10px;right:10px;z-index:5}.bar button{padding:10px 16px;border:0;border-radius:8px;background:${color};color:#fff;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-@media print{body{background:#fff}.sheet{margin:0;box-shadow:none;width:auto;min-height:0;height:297mm}.stamp{border-color:transparent;color:transparent}.bar{display:none}@page{size:A4;margin:0}}
+td,th{border:.75pt solid #000;padding:1.5pt 5pt;vertical-align:middle;line-height:1.15}
+.info td{height:17pt}
+.info td:first-child{width:190pt;font-weight:700;font-family:${fam(th.labelFont ?? th.font)};font-size:${th.labelSize}pt;color:#0d0d0d}
+.items th{font-weight:700;text-align:center;font-size:${th.labelSize - 1}pt;height:34pt;font-family:${fam(th.labelFont ?? th.font)}}
+.items td{font-size:9pt;height:17pt}
+.items td.n{text-align:center;padding:0}.items td.c{text-align:center}.items td.r{text-align:right;white-space:nowrap}
+.items tr.tot td{font-weight:700;font-size:${th.labelSize}pt}
+.foot-img{position:absolute;object-fit:contain}
+.foot-txt{position:absolute;left:40pt;right:40pt;bottom:30pt;text-align:center;font-size:8pt;color:#213260;line-height:1.5}
+.foot-txt .brand{font-family:Arimo,Arial,sans-serif;font-weight:700;letter-spacing:.02em}
+.bar{position:fixed;top:10px;right:10px;z-index:5}.bar button{padding:10px 16px;border:0;border-radius:8px;background:#222;color:#fff;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+@media print{body{background:#fff}.sheet{margin:0;box-shadow:none}.bar{display:none}@page{size:A4;margin:0}}
 </style></head><body>
 <div class="bar"><button onclick="print()">Imprimir / salvar PDF</button></div>
 <div class="sheet"><div class="wm"></div>
 <div class="logo">${e?.logo ? `<img src="${e.logo}" alt="${esc(e.name)}">` : `<b>${esc(e?.name)}</b>`}</div>
 <div class="content">${body}</div>
-<div class="foot">${footer}</div>
+${footer}
 </div></body></html>`
 }
 
@@ -439,16 +471,23 @@ function quoteHtml(d: Data, q: Quote): string {
   const t = quoteTotals(q)
   let body: string
   if (q.model === 'pdde') {
-    const rows = q.items.map((i, n) => `<tr><td class="n">${n + 1}</td><td>${esc(i.description)}</td><td class="c">${i.qty ? i.qty.toLocaleString('pt-BR') : ''}</td><td class="c">${esc(i.unit)}</td><td class="r">${i.price && i.qty ? num(i.price) : ''}</td><td class="r">${num(itemTotal(i))}</td></tr>`).join('')
+    const quira = e?.quoteTheme?.variant === 'quira'
+    const rows = q.items.map((i, n) => `<tr><td class="n">${n + 1}</td><td>${esc(i.description)}</td><td class="c">${i.qty ? i.qty.toLocaleString('pt-BR') : quira ? '-' : ''}</td><td class="c">${esc(i.unit)}</td><td class="r">${i.price && i.qty ? num(i.price) : ''}</td><td class="r">${num(itemTotal(i))}</td></tr>`).join('')
+    const head = quira
+      ? '<th style="width:13pt"></th><th>Descrição dos Serviços</th><th style="width:28pt;font-size:8pt">Qtd/<br>un.</th><th style="width:83pt">Unidade de<br>Fornecimento</th><th style="width:59pt">Valor un.</th><th style="width:69pt">Valor Total</th>'
+      : '<th style="width:17pt"></th><th>Descrição dos Serviços</th><th style="width:35pt">Qtd<br>(un.)</th><th style="width:76pt">Unidade de<br>Fornecimento</th><th style="width:62pt">Valor<br>un. (R$)</th><th style="width:62pt">Valor Total</th>'
+    const total = quira
+      ? `<tr class="tot"><td colspan="5">TOTAL</td><td class="r">${money(t.total)}</td></tr>`
+      : `<tr class="tot"><td></td><td colspan="4">Total</td><td class="r">${money(t.total)}</td></tr>`
     body = `
 <h2><span>1.</span> Orçamento destinado a:</h2>
 <table class="info"><tr><td>CNPJ da APM</td><td>${esc(q.apmCnpj)}</td></tr><tr><td>Nome da APM</td><td>${esc(q.apmName)}</td></tr><tr><td>Subprograma do PDDE Paulista</td><td>${esc(q.subprogram)}</td></tr><tr><td>Ano de Exercício</td><td>${esc(q.exercise)}</td></tr></table>
 <h2><span>2.</span> Dados do proponente:</h2>
 <table class="info"><tr><td>CNPJ</td><td>${esc(e?.doc)}</td></tr><tr><td>Razão Social</td><td>${esc(e?.legalName || e?.name)}</td></tr><tr><td>Endereço</td><td>${esc([e?.address, e?.district].filter(Boolean).join(' - '))}</td></tr><tr><td>Telefone para Contato</td><td>${esc(e?.phone)}</td></tr><tr><td>Data de Emissão do Orçamento</td><td>${fmtDate(q.date)}</td></tr><tr><td>Prazo de Validade do Orçamento</td><td>${q.validDays} dias</td></tr><tr><td>Pessoa Responsável pela Empresa</td><td>${esc(q.contactName)}</td></tr><tr><td>Condição de Pagamento</td><td>${esc(q.payment)}</td></tr></table>
 <h2><span>3.</span> Dados do orçamento:</h2>
-<table class="items"><thead><tr><th></th><th>Descrição dos Serviços</th><th style="width:48px">Qtd<br>(un.)</th><th style="width:86px">Unidade de<br>Fornecimento</th><th style="width:70px">Valor<br>un. (R$)</th><th style="width:92px">Valor Total</th></tr></thead>
-<tbody>${rows}<tr class="tot"><td></td><td colspan="4">Total</td><td class="r">${money(t.total)}</td></tr></tbody></table>
-<div class="stamp">carimbo do CNPJ e assinatura</div>`
+<table class="items"><thead><tr>${head}</tr></thead>
+<tbody>${rows}${total}</tbody></table>
+`
   } else {
     const groups = [...new Set(q.items.map((i) => i.group ?? ''))]
     const rows = groups.map((g, gi) => {
@@ -464,7 +503,7 @@ function quoteHtml(d: Data, q: Quote): string {
 ${t.bdi ? `<tr><td></td><td colspan="4">BDI (${q.bdi.toLocaleString('pt-BR')}%)</td><td class="r">${num(t.bdi)}</td></tr>` : ''}${q.discount ? `<tr><td></td><td colspan="4">Desconto</td><td class="r">− ${num(q.discount)}</td></tr>` : ''}
 <tr class="tot"><td></td><td colspan="4">Total (${esc(extenso(t.total))})</td><td class="r">${money(t.total)}</td></tr></tbody></table>
 ${q.deadline || q.payment || q.notes ? `<h2><span>3.</span> Condições</h2><p>${q.deadline ? `<b>Prazo:</b> ${nl(q.deadline)}<br>` : ''}${q.payment ? `<b>Pagamento:</b> ${nl(q.payment)}<br>` : ''}${q.notes ? nl(q.notes) : ''}</p>` : ''}
-<div class="stamp">carimbo do CNPJ e assinatura</div>`
+`
   }
   return letterhead(e, body, `Orçamento ${q.number} – ${quoteClient(q)}`)
 }

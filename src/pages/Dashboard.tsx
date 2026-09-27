@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Tx } from '../types'
 import { EntityMark } from '../components/ui'
-import { Donut, ForecastChart, MonthBars, Ring, Sparkline } from '../components/Charts'
+import { Donut, ForecastChart, MonthBars, Ring } from '../components/Charts'
 import { Icon } from '../components/Icon'
 import { TxList } from '../components/TxList'
-import { isGroup, ownedBy, signed, KIND_LABEL, accountBalance, addDays, daysBetween, addMonth, fmtDate, moneyShort, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
+import { isGroup, ownedBy, signed, accountBalance, addDays, daysBetween, addMonth, fmtDate, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
 export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   const { data, setDemo } = useStore()
@@ -81,7 +81,6 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
     const rows = Object.entries(by).sort((a, b) => b[1] - a[1])
     return { rows, total: rows.reduce((s, r) => s + r[1], 0) }
   }, [data.txs, scope, ym])
-  const results = Array.from({ length: 6 }, (_, i) => monthSummary(data, addMonth(ym, i - 5), scope).result)
   const hour = new Date().getHours()
   const hello = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
   const longDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -95,151 +94,107 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   const lateOut = late.filter((x) => x.kind === 'out')
   const lateIn = late.filter((x) => x.kind === 'in')
 
+  const [view, setView] = useState<'saldo' | 'meses' | 'gastos' | 'cnpj'>('saldo')
   return (
     <div className="page">
-      <section className="hero">
-        <div className="hero-main">
-          <span className="hero-eyebrow">{ent && <><EntityMark e={ent} size={18} /> {ent.name} ·</>} {longDate}</span>
-          <h1 className="hero-title"><span className="hello">{hello.toLowerCase()},</span> <b>{(data.settings.owner || 'Rogério').toLowerCase()}</b></h1>
-          <p className="hero-sub">{weekLine}</p>
-          <div className="hero-balance">
-            <span>Saldo hoje nas contas</span>
-            <strong className={balance < 0 ? 'neg' : ''}>{money(balance)}</strong>
-            <small>Em 45 dias, se tudo for pago e recebido: <b className={endBal < 0 ? 'neg' : ''}>{money(endBal)}</b></small>
-          </div>
-        </div>
-        {ent ? (
-          <div className="ficha" style={{ ['--c' as string]: ent.color }}>
-            <span className="ficha-tag">{ent.kind === 'pessoal' ? 'pessoa física' : 'empresa'}{ent.favorite ? ' · principal' : ''}</span>
-            <strong className="ficha-name">{ent.name}</strong>
-            <span className="ficha-sub">{ent.kind === 'pessoal' ? data.settings.profile?.fullName : ent.legalName || 'razão social não informada'}</span>
-            <span className="ficha-doc">{ent.doc ? `${ent.kind === 'pessoal' ? 'CPF' : 'CNPJ'} ${ent.doc}` : ''}{ent.city ? ` · ${ent.city}` : ''}</span>
-            <div className="ficha-nums">
-              <span><b>{projects.length}</b>obra{projects.length === 1 ? '' : 's'} ativa{projects.length === 1 ? '' : 's'}</span>
-              {(() => { const n = data.quotes.filter((q) => q.entityId === ent.id && q.status === 'enviado').length; return <span><b>{n}</b>{n === 1 ? 'orçamento enviado' : 'orçamentos enviados'}</span> })()}
-              <span><b className={m.result < 0 ? 'neg' : ''}>{moneyShort(m.result)}</b>resultado do mês</span>
-            </div>
-            <a className="ficha-link" href={`#/empresa/${ent.id}`}>ver perfil da empresa →</a>
-          </div>
-        ) : (
-          <div className="quick">
-            <button onClick={() => onNewTx({ kind: 'out' })}><span className="qi out"><Icon name="arrowDown" /></span>Paguei / vou pagar</button>
-            <button onClick={() => onNewTx({ kind: 'in' })}><span className="qi in"><Icon name="arrowUp" /></span>Recebi / vou receber</button>
-            <button onClick={() => go('/equipe/diarias')}><span className="qi"><Icon name="hardhat" /></span>Diárias da equipe</button>
-            <button onClick={() => go('/orcamentos')}><span className="qi"><Icon name="file" /></span>Fazer orçamento</button>
-          </div>
+      <header className="dash-head">
+        <span className="eyebrow">{longDate}{ent ? ` · ${ent.name}` : scope === 'empresa' ? ' · empresa' : scope === 'all' ? ' · tudo' : ''}</span>
+        <h1 className="dash-title"><span className="hello">{hello.toLowerCase()},</span> {(data.settings.owner || 'Rogério').toLowerCase()}</h1>
+        <p className="dash-sub">{weekLine}</p>
+        {ent && ent.kind === 'empresa' && (
+          <a className="ent-chip" href={`#/empresa/${ent.id}`}><EntityMark e={ent} size={18} /><b>{ent.name}</b><span>{ent.legalName}</span>{ent.doc && <span>CNPJ {ent.doc}</span>}</a>
         )}
-      </section>
+      </header>
 
       {fresh && (
         <div className="card welcome">
           <h2>Vamos começar</h2>
           <ol>
-            <li><a href="#/cadastros/empresas">Confira as empresas e as contas bancárias</a> e coloque o saldo de hoje.</li>
-            <li><a href="#/obras">Cadastre as obras</a> — para o prédio, escolha "Incorporação" e gere os 9 apartamentos (3 pavimentos × 3).</li>
-            <li><a href="#/equipe/pessoas">Cadastre a equipe</a>: fixos (salário), diaristas (valor da diária) e empreiteiros.</li>
-            <li>Lance as contas a pagar e a receber pelo botão <b>+ Lançar</b>.</li>
+            <li><a href="#/cadastros/empresas">Confira os CNPJs e as contas bancárias</a> e coloque o saldo de hoje.</li>
+            <li><a href="#/obras">Cadastre as obras</a> — para o prédio, escolha "Incorporação" e gere os 9 apartamentos.</li>
+            <li><a href="#/equipe/pessoas">Cadastre a equipe</a>: fixos, diaristas e empreiteiros.</li>
+            <li>Lance as contas a pagar e a receber no botão <b>Lançar</b>, no alto da tela.</li>
           </ol>
           <button className="btn" onClick={loadSample}>Ver a plataforma com dados de exemplo</button>
         </div>
       )}
 
       <div className="kpis">
-        <button className="kpi" onClick={() => go('/financeiro')}>
-          <span className="kpi-ic in"><Icon name="arrowUp" /></span>
-          <span className="kpi-l">A receber</span>
-          <strong>{money(sum(toReceive))}</strong>
-          <small>{lateIn.length ? <span className="neg">{lateIn.length} atrasado(s)</span> : `${toReceive.length} lançamento(s)`}</small>
+        <button className="kpi" onClick={() => go('/cadastros/empresas')}>
+          <span className="kpi-top"><span className="kpi-l">saldo nas contas</span><span className="kpi-ic"><Icon name="wallet" size={16} /></span></span>
+          <strong className={balance < 0 ? 'neg' : ''}>{money(balance)}</strong>
+          <small>em 45 dias: {money(endBal)}{lowest.value < 0 ? <span className="neg"> · fica negativo em {fmtDate(lowest.date).slice(0, 5)}</span> : ''}</small>
         </button>
         <button className="kpi" onClick={() => go('/financeiro')}>
-          <span className="kpi-ic out"><Icon name="arrowDown" /></span>
-          <span className="kpi-l">A pagar</span>
+          <span className="kpi-top"><span className="kpi-l">a receber</span><span className="kpi-ic in"><Icon name="arrowUp" size={16} /></span></span>
+          <strong className="pos">{money(sum(toReceive))}</strong>
+          <small>{lateIn.length ? <span className="neg">{money(sum(lateIn))} atrasado</span> : `${toReceive.length} lançamento(s)`}</small>
+        </button>
+        <button className="kpi" onClick={() => go('/financeiro')}>
+          <span className="kpi-top"><span className="kpi-l">a pagar</span><span className="kpi-ic out"><Icon name="arrowDown" size={16} /></span></span>
           <strong>{money(sum(toPay) + pendingDaily)}</strong>
-          <small>{lateOut.length ? <span className="neg">{lateOut.length} vencida(s)</span> : pendingDaily ? `inclui ${money(pendingDaily)} de diárias` : `${toPay.length} lançamento(s)`}</small>
+          <small>{lateOut.length ? <span className="neg">{lateOut.length} vencida(s) · {money(sum(lateOut))}</span> : pendingDaily ? `inclui ${money(pendingDaily)} de diárias` : `${toPay.length} lançamento(s)`}</small>
         </button>
         <div className="kpi">
-          <span className="kpi-ic"><Icon name="trend" /></span>
-          <span className="kpi-l">Resultado de {monthName(ym).split(' ')[0]}</span>
+          <span className="kpi-top"><span className="kpi-l">resultado de {monthName(ym).split(' ')[0]}</span><span className="kpi-ic"><Icon name="trend" size={16} /></span></span>
           <strong className={m.result < 0 ? 'neg' : 'pos'}>{money(m.result)}</strong>
-          <Sparkline values={results} color={m.result < 0 ? 'var(--bad)' : 'var(--good)'} />
+          <small>previsto no mês: {money(m.forecast)}</small>
         </div>
-        <button className="kpi" onClick={() => go('/obras')}>
-          <span className="kpi-ic"><Icon name="building" /></span>
-          <span className="kpi-l">Obras em andamento</span>
-          <strong>{projects.length}</strong>
-          <small>{data.quotes.filter((q) => q.status === 'enviado' && ownedBy(q.entityId, scope)).length} orçamento(s) esperando resposta</small>
-        </button>
       </div>
 
-      {(lateOut.length > 0 || lateIn.length > 0 || pendingDaily > 0 || lowest.value < 0) && (
-        <div className="pills">
-          {lowest.value < 0 && <button className="pill bad" onClick={() => go('/financeiro')}><Icon name="alert" size={16} /> O saldo fica negativo em {fmtDate(lowest.date).slice(0, 5)} ({money(lowest.value)})</button>}
-          {lateOut.length > 0 && <button className="pill bad" onClick={() => go('/financeiro')}><Icon name="alert" size={16} /> {lateOut.length} conta(s) vencida(s) · {money(sum(lateOut))}</button>}
-          {lateIn.length > 0 && <button className="pill warn" onClick={() => go('/financeiro')}><Icon name="wallet" size={16} /> Cobrar {money(sum(lateIn))} atrasado</button>}
-          {pendingDaily > 0 && <button className="pill info" onClick={() => go('/equipe/diarias')}><Icon name="hardhat" size={16} /> Diárias para acertar · {money(pendingDaily)}</button>}
+      <section className="card">
+        <div className="card-head">
+          <div className="seg compact">
+            <button className={view === 'saldo' ? 'on' : ''} onClick={() => setView('saldo')}>saldo previsto</button>
+            <button className={view === 'meses' ? 'on' : ''} onClick={() => setView('meses')}>entradas × saídas</button>
+            <button className={view === 'gastos' ? 'on' : ''} onClick={() => setView('gastos')}>gastos do mês</button>
+            {isGroup(scope) && <button className={view === 'cnpj' ? 'on' : ''} onClick={() => setView('cnpj')}>por CNPJ</button>}
+          </div>
+          {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))} em 45 dias</span>}
         </div>
-      )}
-
-      <div className="cols">
-        <section className="card">
-          <div className="card-head"><div><h2>Saldo previsto</h2><small className="muted">próximos 45 dias, com o que já está lançado</small></div><span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))}</span></div>
-          <ForecastChart points={forecast} />
-        </section>
-        <section className="card">
-          <div className="card-head"><div><h2>Gastos do mês</h2><small className="muted">onde o dinheiro foi em {monthName(ym).split(' ')[0]}</small></div></div>
-          {spend.total ? <Donut rows={spend.rows} total={spend.total} /> : <p className="muted">Nenhum gasto lançado neste mês.</p>}
-        </section>
-      </div>
-
-      {isGroup(scope) && <Compare scope={scope} />}
+        {view === 'saldo' && <ForecastChart points={forecast} height={220} />}
+        {view === 'meses' && <MonthBars data={chart} />}
+        {view === 'gastos' && (spend.total ? <Donut rows={spend.rows} total={spend.total} /> : <p className="muted">Nenhum gasto lançado neste mês.</p>)}
+        {view === 'cnpj' && <Compare scope={scope} />}
+      </section>
 
       <div className="cols">
         <section className="card">
           <div className="card-head">
-            <h2>Próximos 15 dias</h2>
-            <button className="link" onClick={() => onNewTx({ kind: 'out' })}>+ conta</button>
+            <h2>próximos 15 dias</h2>
+            {(pendingDaily > 0) && <a className="link" href="#/equipe/diarias">diárias a acertar: {money(pendingDaily)}</a>}
           </div>
           <TxList txs={upcoming} scope={scope} empty="Nada vencendo nos próximos 15 dias" />
+          <button className="link" onClick={() => onNewTx({ kind: 'out' })}>+ lançar conta</button>
         </section>
         <div className="stack">
           <section className="card">
-            <div className="card-head"><h2>Agenda</h2><a className="link" href="#/agenda">abrir</a></div>
+            <div className="card-head"><h2>agenda</h2><a className="link" href="#/agenda">abrir</a></div>
             {agenda.length ? agenda.map((e) => (
               <a key={e.id + e.date} className="ag-card" href="#/agenda">
-                <span className="ag-day"><b>{e.date === t ? 'Hoje' : 'Amanhã'}</b>{e.time && <small>{e.time}</small>}</span>
+                <span className="ag-day"><b>{e.date === t ? 'hoje' : 'amanhã'}</b>{e.time && <small>{e.time}</small>}</span>
                 <span><b>{e.title}</b>{e.place && <small><Icon name="pin" size={13} /> {e.place}</small>}</span>
               </a>
-            )) : <p className="muted">Nada marcado para hoje e amanhã. <a className="link" href="#/agenda">Marcar compromisso</a></p>}
+            )) : <p className="muted">Nada marcado para hoje e amanhã.</p>}
           </section>
-          <section className="card">
-            <div className="card-head"><h2>Entradas × saídas</h2><small className="muted">6 meses</small></div>
-            <MonthBars data={chart} />
-          </section>
+          {projects.length > 0 && (
+            <section className="card">
+              <div className="card-head"><h2>obras em andamento</h2><a className="link" href="#/obras">ver todas</a></div>
+              <div className="proj-list">
+                {projects.map((p) => {
+                  const s = projectStats(data, p.id)
+                  return (
+                    <a key={p.id} className="proj-row" href={`#/obras/${p.id}`}>
+                      {p.budget > 0 ? <Ring value={s.budgetUse} size={44} /> : <span className="ring-ph sm"><Icon name="building" size={18} /></span>}
+                      <span className="proj-row-b"><b>{p.name}</b><small>gasto {money(s.cost)}{p.budget ? ` de ${money(p.budget)}` : ''}</small></span>
+                    </a>
+                  )
+                })}
+              </div>
+            </section>
+          )}
         </div>
       </div>
-
-      {projects.length > 0 && (
-        <section className="card">
-          <div className="card-head"><h2>Obras em andamento</h2><a className="link" href="#/obras">ver todas</a></div>
-          <div className="proj-grid">
-            {projects.map((p) => {
-              const s = projectStats(data, p.id)
-              const pe = data.entities.find((e) => e.id === p.entityId)
-              return (
-                <a key={p.id} className="proj-tile" href={`#/obras/${p.id}`}>
-                  {p.budget > 0 ? <Ring value={s.budgetUse} /> : <span className="ring-ph"><Icon name="building" size={26} /></span>}
-                  <span className="proj-tile-b">
-                    <strong>{p.name}</strong>
-                    <small className="muted"><EntityMark e={pe} size={14} /> {pe?.name} · {KIND_LABEL[p.kind]}</small>
-                    <small>Gasto <b>{money(s.cost)}</b>{p.budget ? <span className="muted"> de {money(p.budget)}</span> : ''}</small>
-                    {s.toReceive > 0 && <small className="pos">A receber {money(s.toReceive)}</small>}
-                  </span>
-                </a>
-              )
-            })}
-          </div>
-        </section>
-      )}
     </div>
   )
 }
@@ -260,21 +215,19 @@ function Compare({ scope }: { scope: string }) {
     const series = Array.from({ length: 6 }, (_, i) => monthSummary(data, addMonth(ym, i - 5), e.id).result)
     return { e, bal, rec, pay, res: m.result, inM: m.inPaid, year: y.i - y.o, yearIn: y.i, obras, quotes, series }
   })
+  const max = Math.max(1, ...rows.map((r) => Math.abs(r.res)), ...rows.map((r) => Math.abs(r.bal)))
   return (
-    <section className="compare-wrap">
-      <div className="section-head"><h2>{scope === 'all' ? 'Por CNPJ e pessoal' : 'Por CNPJ'}</h2><small className="muted">quanto cada CNPJ movimenta · toque para filtrar</small></div>
-      <div className="co-grid">
-        {rows.filter((r) => r.e.favorite || r.bal || r.rec || r.pay || r.res).map((r) => (
-          <button key={r.e.id} className={`co-card ${r.e.favorite ? '' : 'minor'}`} style={{ ['--c' as string]: r.e.color }} onClick={() => setSettings({ scope: r.e.id })}>
-            <span className="co-top"><EntityMark e={r.e} size={34} /><b>{r.e.name}</b>{r.obras > 0 && <span className="co-badge">{r.obras} obra{r.obras > 1 ? 's' : ''}</span>}</span>
-            <span className="co-l">Saldo</span>
-            <strong className={r.bal < 0 ? 'neg' : ''}>{money(r.bal)}</strong>
-            <Sparkline values={r.series} color={r.e.color} />
-            <span className="co-row"><span>Resultado do mês</span><b className={r.res < 0 ? 'neg' : 'pos'}>{money(r.res)}</b></span>
-            <span className="co-row"><span className="pos">+ {money(r.rec)}</span><span className="neg">− {money(r.pay)}</span></span>
-          </button>
-        ))}
-      </div>
-    </section>
+    <div className="cnpj-list">
+      <div className="cnpj-row head"><span>CNPJ</span><span>saldo</span><span>resultado do mês</span><span>a receber</span><span>a pagar</span></div>
+      {rows.filter((r) => r.e.favorite || r.bal || r.rec || r.pay || r.res).map((r) => (
+        <button key={r.e.id} className="cnpj-row" onClick={() => setSettings({ scope: r.e.id })}>
+          <span className="cnpj-name"><EntityMark e={r.e} size={24} /><b>{r.e.name}</b></span>
+          <span className={r.bal < 0 ? 'neg' : ''}>{money(r.bal)}<i className="bar-mini"><i style={{ width: `${(Math.abs(r.bal) / max) * 100}%`, background: r.e.color }} /></i></span>
+          <span className={r.res < 0 ? 'neg' : 'pos'}>{money(r.res)}</span>
+          <span className="muted">{money(r.rec)}</span>
+          <span className="muted">{money(r.pay)}</span>
+        </button>
+      ))}
+    </div>
   )
 }

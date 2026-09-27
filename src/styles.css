@@ -20,7 +20,7 @@
   --side: #172a4d;
   --side-2: #1d3461;
   --radius: 18px;
-  --display: 'Instrument Sans Variable', 'Instrument Sans', 'Segoe UI', sans-serif;
+  --display: 'Syne Variable', 'Montserrat Variable', 'Segoe UI', sans-serif;
   --chart-1: #3563b8;
   --hover: #f6f8fb;
   --help-ink: #1e4a7a;
@@ -28,7 +28,7 @@
   --warn-ink: #8a5a00;
   --hero: #172a4d;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
-  font-family: 'Instrument Sans Variable', 'Instrument Sans', 'Segoe UI', Roboto, system-ui, sans-serif;
+  font-family: 'Montserrat Variable', 'Montserrat', 'Segoe UI', Roboto, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--bg);
@@ -616,7 +616,7 @@ button.kpi:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rg
 .chart .zero { stroke: var(--bad); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.6; }
 .spark .zero { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart .cross { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 3; }
-.chart .axis { font-size: 12px; fill: var(--muted); font-family: 'Instrument Sans Variable', 'Instrument Sans', sans-serif; }
+.chart .axis { font-size: 12px; fill: var(--muted); font-family: 'Montserrat Variable', 'Montserrat', sans-serif; }
 .tip { position: absolute; top: 0; transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; white-space: nowrap; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); z-index: 5; }
 .tip .pos { color: #7fe0b0; }
 .tip .neg, .tip b.neg { color: #ffaaa0; }
@@ -862,3 +862,106 @@ h2 { font-size: 16.5px; font-weight: 650; }
 .q-preview > small { text-align: center; }
 @media (max-width: 1280px) { .q-layout { grid-template-columns: minmax(0, 1fr) 320px; } }
 @media (max-width: 1100px) { .q-layout { grid-template-columns: 1fr; } .q-preview { position: static; max-width: 460px; margin: 0 auto; width: 100%; } }
+
+.q-top { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
+.q-model { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.q-model .seg { margin: 0; }
+.btn.icon-only { padding: 0; width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; }
+@media (max-width: 760px) { .q-top { grid-template-columns: 1fr; } }
+
+/* ================= layout calmo (v3) ================= */
+:root { --bg: #f4f5f8; --side-bg: #eceff4; --line: #e3e7ee; }
+:root[data-theme='dark'] { --side-bg: #111a2a; }
+body { background: var(--bg); }
+/* barra lateral clara */
+.sidebar { background: var(--side-bg); background-image: none; color: var(--ink); border-right: 1px solid var(--line); }
+.brand strong { color: var(--ink); }
+.brand small { color: var(--muted); }
+.brand-mark { background: var(--ink); color: #fff; border-radius: 50%; }
+:root[data-theme='dark'] .brand-mark { background: var(--accent); color: #1b1206; }
+.sidebar nav a { color: var(--ink-2); border-left: 0; border-radius: 12px; font-weight: 500; }
+.sidebar nav a:hover { background: rgba(23, 42, 77, 0.06); color: var(--ink); }
+:root[data-theme='dark'] .sidebar nav a:hover { background: rgba(255, 255, 255, 0.05); }
+.sidebar nav a.on { background: var(--ink); color: #fff; border-radius: 12px; box-shadow: 0 6px 14px -8px rgba(23, 42, 77, 0.6); }
+.sidebar nav a.on .nav-i { color: #fff; }
+:root[data-theme='dark'] .sidebar nav a.on { background: var(--accent); color: #1b1206; }
+:root[data-theme='dark'] .sidebar nav a.on .nav-i { color: #1b1206; }
+.side-foot { border-top: 1px solid var(--line); }
+.me { color: var(--ink); background: var(--card); border: 1px solid var(--line); }
+.me:hover { background: var(--card); border-color: var(--line-2); }
+.me .avatar { background: var(--accent-soft); color: var(--accent-ink); }
+.me small { color: var(--muted); }
+.sync { color: var(--muted); }
+.sidebar .side-tools .icon-btn { color: var(--muted); }
+.sidebar .side-tools .icon-btn:hover { background: rgba(23, 42, 77, 0.06); color: var(--ink); }
+/* topo */
+.topbar { background: var(--bg); border-bottom: 0; padding-top: 14px; padding-bottom: 6px; }
+.scope-seg { background: var(--card); border-color: var(--line); }
+.demo-bar { margin: 0 28px; border: 1px solid var(--line); border-radius: 12px; }
+/* cabeçalho das páginas */
+.eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); text-transform: lowercase; }
+.eyebrow::before { content: ''; width: 26px; height: 1.5px; background: var(--accent); }
+.dash-head { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
+.dash-title { font-size: clamp(28px, 3.2vw, 38px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.05; margin: 2px 0 0; }
+.dash-title .hello { font-style: italic; font-weight: 400; color: var(--accent-ink); }
+.dash-sub { margin: 0; color: var(--muted); font-size: 15px; font-style: italic; }
+.ent-chip { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; align-self: flex-start; margin-top: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px 5px 6px; font-size: 13px; color: var(--muted); }
+.ent-chip b { color: var(--ink); font-size: 14px; }
+.ent-chip:hover { border-color: var(--line-2); }
+.page-head h1 { font-size: 28px; letter-spacing: -0.03em; }
+/* cartões */
+.card, .kpi { border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(23, 42, 77, 0.03); }
+.kpi { padding: 18px 20px; gap: 6px; }
+.kpi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.kpi-l { font-size: 13.5px; color: var(--muted); font-weight: 600; }
+.kpi .kpi-ic { margin: 0; width: 32px; height: 32px; border-radius: 10px; background: var(--hover); color: var(--muted); }
+.kpi .kpi-ic.in { background: var(--good-soft); color: var(--good); }
+.kpi .kpi-ic.out { background: var(--bad-soft); color: var(--bad); }
+.kpi strong { font-size: 24px; font-weight: 700; }
+.kpi small { font-size: 13px; }
+.card-head h2 { font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
+.seg { background: var(--hover); border: 1px solid var(--line); }
+.seg button.on { box-shadow: 0 1px 3px rgba(23, 42, 77, 0.12); }
+.tabs { border-bottom: 0; background: var(--hover); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; align-self: flex-start; max-width: 100%; }
+.tabs button { border: 0; border-radius: 999px; padding: 7px 16px; margin: 0; font-size: 14.5px; }
+.tabs button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(23, 42, 77, 0.12); border: 0; }
+/* por CNPJ */
+.cnpj-list { display: flex; flex-direction: column; }
+.cnpj-row { display: grid; grid-template-columns: 1.3fr 1.2fr 1fr 1fr 1fr; gap: 12px; align-items: center; padding: 12px 6px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.cnpj-row:last-child { border-bottom: 0; }
+button.cnpj-row:hover { background: var(--hover); border-radius: 10px; }
+.cnpj-row.head { font-size: 12.5px; color: var(--muted); font-weight: 600; padding-top: 0; }
+.cnpj-name { display: flex; align-items: center; gap: 10px; }
+.bar-mini { display: block; height: 4px; background: var(--line); border-radius: 9px; margin-top: 5px; overflow: hidden; }
+.bar-mini i { display: block; height: 100%; border-radius: 9px; }
+/* obras em lista */
+.proj-list { display: flex; flex-direction: column; }
+.proj-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.proj-row:last-child { border-bottom: 0; }
+.proj-row-b { display: flex; flex-direction: column; min-width: 0; }
+.proj-row-b b { font-weight: 600; }
+.proj-row-b small { color: var(--muted); }
+.ring-ph.sm { width: 44px; height: 44px; }
+.card > .link { margin-top: 10px; display: inline-block; }
+@media (min-width: 761px) and (max-width: 1200px) { .sidebar nav a.on { border-radius: 12px; } }
+@media (max-width: 760px) {
+  .demo-bar { margin: 0 12px; }
+  .cnpj-row { grid-template-columns: 1.2fr 1fr 1fr; }
+  .cnpj-row > :nth-child(4), .cnpj-row > :nth-child(5) { display: none; }
+  .dash-title { font-size: 28px; }
+  .bottomnav .on { color: var(--ink); }
+}
+
+/* Montserrat no texto, Syne nos títulos e números de destaque */
+.dash-title .hello, .hero-title .hello { font-family: 'Montserrat Variable', sans-serif; font-weight: 300; letter-spacing: -0.03em; }
+.dash-title { font-weight: 800; letter-spacing: -0.03em; }
+body, button, input, select, textarea { letter-spacing: -0.005em; }
+.kpi strong, .stat-value, .tx-amount, .co-card strong, .q-total b, .hero-balance strong, .ficha-nums b, .donut-v, .ring-t, .chip-v, .ag-day b, .tx-date { font-family: 'Montserrat Variable', sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+.kpi-l, .field-label, .tx-main strong { font-weight: 600; }
+
+h2, h3, .co-top b, .proj-tile-b strong, .brand strong, .ficha-name, .tabs button, .card-head h2 { font-family: 'Montserrat Variable', sans-serif; }
+h1, .dash-title { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; }
+.brand strong { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.chart .axis { font-size: 11.5px; }
+.brand-mark { font-family: 'Montserrat Variable', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0; }
+.brand small { line-height: 1.3; }

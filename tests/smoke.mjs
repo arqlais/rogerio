@@ -139,7 +139,7 @@ try {
     await page.getByLabel('Preço unitário').nth(1).fill('50')
     await page.waitForTimeout(200)
     await shot('orcamento')
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.getByRole('button', { name: 'Baixar PDF' }).click()])
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.getByRole('button', { name: 'Baixar PDF' }).first().click()])
     ok(dl && dl.suggestedFilename().endsWith('.pdf'), `${vp.name}: orçamento baixa em PDF (${dl?.suggestedFilename()})`)
     await page.getByRole('button', { name: 'Ver / imprimir' }).click(); await page.waitForTimeout(500)
     await shot('orcamento-pdf')
@@ -168,7 +168,7 @@ try {
     await page.locator('.scope-seg button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
     const rdlId = (await stored()).entities.find((e) => e.name === 'RDL').id
     await page.locator('.cnpj-pick select').selectOption(rdlId); await page.waitForTimeout(250)
-    ok((await stored()).settings.scope === rdlId && await page.locator('.ficha-name', { hasText: 'RDL' }).count() > 0, `${vp.name}: filtro por CNPJ mostra a ficha da RDL`)
+    ok((await stored()).settings.scope === rdlId && await page.locator('.ent-chip', { hasText: 'RDL' }).count() > 0, `${vp.name}: filtro por CNPJ mostra a RDL no topo`)
     if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
     await page.locator(vp.width < 800 ? '.sheet [aria-label="Modo escuro"]' : '.sidebar [aria-label="Modo escuro"]').click(); await page.waitForTimeout(250)
     ok(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', `${vp.name}: modo escuro`)
