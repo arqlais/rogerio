@@ -6,7 +6,7 @@ import { EntityMark, confirmDialog } from '../components/ui'
 import { Donut, ForecastChart, MonthBars, Ring, Sparkline } from '../components/Charts'
 import { Icon } from '../components/Icon'
 import { TxList } from '../components/TxList'
-import { KIND_LABEL, accountBalance, addDays, daysBetween, addMonth, fmtDate, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
+import { KIND_LABEL, accountBalance, addDays, daysBetween, addMonth, fmtDate, moneyShort, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
 export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   const { data, replaceAll } = useStore()
@@ -110,7 +110,20 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
             <small>Em 45 dias, se tudo for pago e recebido: <b className={endBal < 0 ? 'neg' : ''}>{money(endBal)}</b></small>
           </div>
         </div>
-        {ent?.logo ? <img className="hero-logo" src={ent.logo} alt={ent.name} /> : (
+        {ent ? (
+          <div className="ficha" style={{ ['--c' as string]: ent.color }}>
+            <span className="ficha-tag">{ent.kind === 'pessoal' ? 'pessoa física' : 'empresa'}{ent.favorite ? ' · principal' : ''}</span>
+            <strong className="ficha-name">{ent.name}</strong>
+            <span className="ficha-sub">{ent.kind === 'pessoal' ? data.settings.profile?.fullName : ent.legalName || 'razão social não informada'}</span>
+            <span className="ficha-doc">{ent.doc ? `${ent.kind === 'pessoal' ? 'CPF' : 'CNPJ'} ${ent.doc}` : ''}{ent.city ? ` · ${ent.city}` : ''}</span>
+            <div className="ficha-nums">
+              <span><b>{projects.length}</b>obra{projects.length === 1 ? '' : 's'} ativa{projects.length === 1 ? '' : 's'}</span>
+              {(() => { const n = data.quotes.filter((q) => q.entityId === ent.id && q.status === 'enviado').length; return <span><b>{n}</b>{n === 1 ? 'orçamento enviado' : 'orçamentos enviados'}</span> })()}
+              <span><b className={m.result < 0 ? 'neg' : ''}>{moneyShort(m.result)}</b>resultado do mês</span>
+            </div>
+            <a className="ficha-link" href={`#/empresa/${ent.id}`}>ver perfil da empresa →</a>
+          </div>
+        ) : (
           <div className="quick">
             <button onClick={() => onNewTx({ kind: 'out' })}><span className="qi out"><Icon name="arrowDown" /></span>Paguei / vou pagar</button>
             <button onClick={() => onNewTx({ kind: 'in' })}><span className="qi in"><Icon name="arrowUp" /></span>Recebi / vou receber</button>
