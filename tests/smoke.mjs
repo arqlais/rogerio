@@ -61,7 +61,7 @@ try {
 
     // novo lançamento de saída
     const before = (await stored()).txs.length
-    await page.getByRole('button', { name: '+ Lançar' }).click()
+    await page.getByRole('button', { name: 'Lançar', exact: true }).click()
     await page.getByText('Saída / conta a pagar').click()
     await page.getByLabel('Descrição', { exact: true }).fill('Cimento CP-II 50 sacos')
     await page.getByLabel('Valor', { exact: true }).fill('1.750,00')
