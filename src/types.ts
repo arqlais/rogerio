@@ -1,0 +1,221 @@
+/* Modelo de dados. Tudo fica num único objeto (Data), salvo no navegador e,
+   com a nuvem ligada, numa linha do Supabase por usuário. */
+
+/** Carteira: cada empresa (CNPJ) ou a pessoa física (finanças pessoais). */
+export interface Entity {
+  id: string
+  name: string
+  kind: 'empresa' | 'pessoal'
+  doc?: string // CNPJ ou CPF
+  color: string
+  logo?: string // imagem (data URL) usada nos orçamentos e recibos
+  address?: string
+  phone?: string
+  email?: string
+  responsible?: string // engenheiro responsável / CREA
+  pix?: string
+  notes?: string
+}
+
+/** Conta bancária, caixa ou cartão de uma carteira. */
+export interface Account {
+  id: string
+  entityId: string
+  name: string // ex.: Itaú PJ, Caixa (dinheiro), Nubank
+  initial: number // saldo na data de início
+  initialDate: string
+  archived?: boolean
+}
+
+export type ProjectKind = 'reforma_escola' | 'reforma' | 'construcao' | 'incorporacao' | 'outro'
+export type ProjectStatus = 'orcamento' | 'andamento' | 'pausada' | 'concluida'
+
+/** Obra / contrato. */
+export interface Project {
+  id: string
+  name: string
+  entityId: string // empresa responsável
+  kind: ProjectKind
+  status: ProjectStatus
+  client?: string // prefeitura, secretaria, cliente particular…
+  contractNo?: string // nº do contrato / licitação
+  address?: string
+  contractValue: number // valor do contrato (0 em obra própria)
+  budget: number // custo previsto
+  start?: string
+  end?: string
+  notes?: string
+}
+
+export type UnitStatus = 'disponivel' | 'reservado' | 'vendido' | 'permuta'
+
+/** Unidade de uma incorporação (ex.: apartamento do prédio). */
+export interface Unit {
+  id: string
+  projectId: string
+  floor: number
+  number: string
+  area?: number
+  price: number // preço de tabela
+  status: UnitStatus
+  buyer?: string
+  buyerPhone?: string
+  saleDate?: string
+  salePrice?: number
+  notes?: string
+}
+
+export type PersonRole = 'fixo' | 'diarista' | 'empreiteiro' | 'fornecedor' | 'cliente' | 'outro'
+
+/** Funcionários, empreiteiros, fornecedores e clientes. */
+export interface Person {
+  id: string
+  name: string
+  role: PersonRole
+  job?: string // pedreiro, servente, eletricista, mestre…
+  phone?: string
+  doc?: string
+  pix?: string
+  entityId?: string // empresa onde está registrado / que contrata
+  salary?: number // fixo: salário mensal
+  charges?: number // fixo: encargos estimados (% sobre o salário)
+  dailyRate?: number // diarista: valor da diária
+  active: boolean
+  notes?: string
+}
+
+/** Lançamento financeiro: entrada, saída ou transferência entre contas/carteiras. */
+export interface Tx {
+  id: string
+  kind: 'in' | 'out' | 'transfer'
+  entityId: string
+  accountId?: string
+  toEntityId?: string // transferência
+  toAccountId?: string
+  category: string
+  description: string
+  amount: number // valor efetivo (líquido)
+  gross?: number // entrada: valor bruto da nota/medição
+  retention?: number // entrada: retenções (ISS, INSS, IR…)
+  due: string // vencimento
+  paid?: string // data do pagamento/recebimento; vazio = em aberto
+  projectId?: string
+  unitId?: string
+  contractId?: string
+  personId?: string
+  method?: string
+  docNo?: string // NF, boleto, recibo
+  group?: string // parcelamento/repetição
+  installment?: string // "2/10"
+  settledBy?: string // adiantamento já descontado na folha (id do lançamento do salário)
+  notes?: string
+  createdAt: string
+}
+
+/** Apontamento de diária de um diarista numa obra. */
+export interface Attendance {
+  id: string
+  date: string
+  personId: string
+  projectId: string
+  fraction: number // 1 = dia inteiro, 0.5 = meio dia
+  rate: number // valor da diária no dia
+  extra?: number // hora extra, passagem, café…
+  note?: string
+  txId?: string // lançamento que pagou
+}
+
+/** Empreitada: serviço contratado por preço fechado. */
+export interface Contract {
+  id: string
+  personId: string
+  projectId: string
+  entityId: string
+  service: string
+  total: number
+  progress: number // % executado (medido pelo engenheiro)
+  status: 'andamento' | 'concluida' | 'cancelada'
+  start?: string
+  notes?: string
+}
+
+export interface QuoteItem {
+  id: string
+  group?: string // etapa (ex.: 1 – Serviços preliminares)
+  description: string
+  unit: string // m², m³, un, vb…
+  qty: number
+  price: number // valor unitário
+}
+
+export type QuoteStatus = 'rascunho' | 'enviado' | 'aprovado' | 'recusado'
+
+/** Orçamento / proposta para cliente. */
+export interface Quote {
+  id: string
+  number: string
+  entityId: string
+  client: string
+  clientDoc?: string
+  clientContact?: string
+  address?: string // local da obra
+  title: string // objeto: "Reforma da cobertura…"
+  date: string
+  validDays: number
+  deadline?: string // prazo de execução
+  payment?: string // condições de pagamento
+  items: QuoteItem[]
+  bdi: number // % de BDI sobre o custo direto
+  discount: number // R$
+  notes?: string
+  status: QuoteStatus
+  projectId?: string // obra criada a partir dele
+}
+
+export type EventKind = 'compromisso' | 'visita' | 'reuniao' | 'entrega' | 'pessoal' | 'outro'
+
+/** Compromisso da agenda. */
+export interface CalEvent {
+  id: string
+  title: string
+  date: string
+  time?: string
+  kind: EventKind
+  projectId?: string
+  place?: string
+  notes?: string
+  done?: boolean
+  repeat?: 'semanal' | 'mensal'
+}
+
+export interface Category {
+  id: string
+  name: string
+  kind: 'in' | 'out'
+  scope: 'empresa' | 'pessoal' | 'ambos'
+}
+
+export interface Settings {
+  owner: string
+  scope: string // 'all' ou id da carteira em foco
+  payday: number // dia do pagamento dos fixos
+  weekStart: number // 1 = segunda (fechamento das diárias)
+}
+
+export interface Data {
+  version: number
+  entities: Entity[]
+  accounts: Account[]
+  projects: Project[]
+  units: Unit[]
+  people: Person[]
+  txs: Tx[]
+  attendance: Attendance[]
+  contracts: Contract[]
+  quotes: Quote[]
+  events: CalEvent[]
+  categories: Category[]
+  settings: Settings
+}
+
+export type Collection = 'entities' | 'accounts' | 'projects' | 'units' | 'people' | 'txs' | 'attendance' | 'contracts' | 'categories' | 'quotes' | 'events'
