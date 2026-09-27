@@ -167,11 +167,22 @@ try {
     // empresas sempre juntas (sem filtro de CNPJ no topo) e modo escuro
     await page.locator('.scope-seg button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
     ok((await stored()).settings.scope === 'empresa' && await page.locator('.cnpj-pick').count() === 0, `${vp.name}: Empresa junta todos os CNPJs`)
-    if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
-    await page.locator(vp.width < 800 ? '.sheet [aria-label="Modo escuro"]' : '.sidebar [aria-label="Modo escuro"]').click(); await page.waitForTimeout(250)
+    // layout novo (padrão): central de comando e menu do usuário
+    await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
+    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.todo').count() === 1, `${vp.name}: layout novo com central de comando`)
+    if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150); await page.locator('.sheet [aria-label="Modo escuro"]').click() }
+    else { await page.locator('.nav2-me').click(); await page.getByRole('button', { name: 'Modo escuro' }).click() }
+    await page.waitForTimeout(250)
     ok(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', `${vp.name}: modo escuro`)
     await shot('escuro')
-    await page.locator(vp.width < 800 ? '.sheet [aria-label="Exemplo preenchido"]' : '.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
+    if (vp.width >= 800) {
+      await page.locator('.nav2-me').click(); await page.getByRole('button', { name: 'Usar layout antigo' }).click(); await page.waitForTimeout(250)
+      ok(await page.locator('.sidebar').count() === 1, `${vp.name}: troca para o layout antigo`)
+      await page.locator('.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
+    } else {
+      if (!(await page.locator('.sheet').count())) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
+      await page.locator('.sheet [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
+    }
     ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: olho volta para a versão vazia`)
     ok(errors.length === 0, `${vp.name}: nenhum erro de página ${errors.join(' | ')}`)
     await page.close()

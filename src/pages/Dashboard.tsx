@@ -6,6 +6,7 @@ import { EntityMark } from '../components/ui'
 import { Donut, ForecastChart, MonthBars, Ring } from '../components/Charts'
 import { Icon } from '../components/Icon'
 import { TxList } from '../components/TxList'
+import { useLayout } from '../layout'
 import { isGroup, ownedBy, signed, accountBalance, addDays, daysBetween, addMonth, fmtDate, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
 export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
@@ -95,6 +96,30 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   const lateIn = late.filter((x) => x.kind === 'in')
 
   const [view, setView] = useState<'saldo' | 'meses' | 'gastos' | 'cnpj'>('saldo')
+  const { layout } = useLayout()
+  // "precisa da sua atenção": tarefas que o sistema encontra sozinho
+  const todo: { icon: string; tone: 'bad' | 'warn' | 'info'; title: string; sub: string; action: string; go: () => void }[] = []
+  if (lateOut.length) todo.push({ icon: 'alert', tone: 'bad', title: `${lateOut.length} conta${lateOut.length > 1 ? 's' : ''} vencida${lateOut.length > 1 ? 's' : ''}`, sub: `${money(sum(lateOut))} para pagar`, action: 'ver contas', go: () => go('/financeiro') })
+  if (lateIn.length) todo.push({ icon: 'wallet', tone: 'warn', title: `Cobrar ${money(sum(lateIn))}`, sub: `${lateIn.length} recebimento${lateIn.length > 1 ? 's' : ''} atrasado${lateIn.length > 1 ? 's' : ''}`, action: 'ver quem deve', go: () => go('/financeiro') })
+  if (pendingDaily > 0) todo.push({ icon: 'hardhat', tone: 'info', title: 'Acertar diárias', sub: `${money(pendingDaily)} com os diaristas`, action: 'abrir diárias', go: () => go('/equipe/diarias') })
+  const oldQuotes = data.quotes.filter((q) => q.status === 'enviado' && ownedBy(q.entityId, scope) && daysBetween(q.date, t) >= 7)
+  if (oldQuotes.length) todo.push({ icon: 'file', tone: 'info', title: `${oldQuotes.length} orçamento${oldQuotes.length > 1 ? 's' : ''} sem resposta`, sub: 'enviados há mais de 7 dias', action: 'ver orçamentos', go: () => go('/orcamentos') })
+  for (const p of projects) {
+    const st = projectStats(data, p.id)
+    if (p.budget && st.budgetUse >= 90) todo.push({ icon: 'building', tone: st.budgetUse > 100 ? 'bad' : 'warn', title: `${p.name}: ${Math.round(st.budgetUse)}% do previsto`, sub: `gasto ${money(st.cost)} de ${money(p.budget)}`, action: 'ver obra', go: () => go(`/obras/${p.id}`) })
+  }
+  const lastYm = addMonth(ym, -1)
+  const fixed = data.people.filter((p) => p.role === 'fixo' && p.active && (p.salary ?? 0) > 0 && ownedBy(p.entityId, scope))
+  const unpaid = fixed.filter((p) => !data.txs.some((x) => x.group === `folha-${lastYm}-${p.id}`))
+  if (unpaid.length) todo.push({ icon: 'users', tone: 'info', title: `Salários de ${monthName(lastYm).split(' ')[0]}`, sub: `${unpaid.length} funcionário${unpaid.length > 1 ? 's' : ''} sem salário lançado`, action: 'lançar salários', go: () => go('/equipe/folha') })
+  const actions: [string, string, string, () => void][] = [
+    ['arrowDown', 'Paguei uma conta', 'ou vou pagar', () => onNewTx({ kind: 'out' })],
+    ['arrowUp', 'Recebi', 'ou vou receber', () => onNewTx({ kind: 'in' })],
+    ['hardhat', 'Diárias', 'marcar e pagar', () => go('/equipe/diarias')],
+    ['file', 'Orçamento', 'escola ou comum', () => go('/orcamentos')],
+    ['calendar', 'Compromisso', 'visita, reunião', () => go('/agenda')],
+    ['building', 'Nova obra', 'ou ver as obras', () => go('/obras')],
+  ]
   return (
     <div className="page">
       <header className="dash-head">
@@ -117,6 +142,33 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
           </ol>
           <button className="btn" onClick={loadSample}>Ver a plataforma com dados de exemplo</button>
         </div>
+      )}
+
+      {layout === 'novo' && (
+        <>
+          <section className="cmd">
+            <h2 className="cmd-title">o que você quer fazer?</h2>
+            <div className="cmd-grid">
+              {actions.map(([ic, l, sub, fn], i) => (
+                <button key={l} className={`cmd-btn c${i}`} onClick={fn}><span className="cmd-ic"><Icon name={ic} size={22} /></span><b>{l}</b><small>{sub}</small></button>
+              ))}
+            </div>
+          </section>
+          <section className="card todo">
+            <div className="card-head"><h2>precisa da sua atenção</h2>{todo.length > 0 && <span className="todo-count">{todo.length}</span>}</div>
+            {todo.length ? (
+              <div className="todo-list">
+                {todo.map((x, i) => (
+                  <div key={i} className={`todo-item ${x.tone}`}>
+                    <span className="todo-ic"><Icon name={x.icon} size={18} /></span>
+                    <span className="todo-txt"><b>{x.title}</b><small>{x.sub}</small></span>
+                    <button className="btn small" onClick={x.go}>{x.action}</button>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="todo-ok"><Icon name="check" size={18} /> Tudo em dia. Nada pendente por aqui.</p>}
+          </section>
+        </>
       )}
 
       <div className="kpis">
