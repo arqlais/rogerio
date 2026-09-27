@@ -50,7 +50,7 @@ Recomendado: um **projeto Supabase só do Rogério** (grátis), separado do Cont
 7. No GitHub do `rogerio`: **Settings → Secrets and variables → Actions → aba Variables** → crie `SUPABASE_URL` e `SUPABASE_ANON_KEY`.
 8. **Actions → Publicar no GitHub Pages → Run workflow**.
 
-Sem essas variáveis, o site usa o projeto Supabase do Controle (tabela separada `engenharia`, cada usuário só vê os próprios dados). Se a tabela não existir, o próprio sistema mostra o SQL com botão de copiar e o link do projeto certo.
+O site já vem ligado ao projeto **gestão rogério** (`aygrqbzuqdnjxoaywhhw`); as variáveis só são necessárias para trocar de projeto. Se a tabela não existir, o próprio sistema mostra o SQL com botão de copiar e o link do projeto certo.
 
 ## Stack
 

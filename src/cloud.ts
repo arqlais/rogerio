@@ -4,10 +4,9 @@ import { ARTIFACT } from './env'
 
 /* Nuvem (Supabase): login com e-mail e senha + todos os dados numa linha por usuário,
    protegida por RLS (só o dono lê e escreve). Veja o README e supabase/schema.sql.
-   Usa o mesmo projeto Supabase do Controle da Laís (tabela separada "engenharia");
-   as variáveis de ambiente, se existirem, têm prioridade. */
-const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://lbggvjebkhdcybpkxzxs.supabase.co'
-const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'sb_publishable_uqo6nAVMS7iZsidCPNQRhg_YA9RNaYA'
+   Projeto Supabase próprio do Rogério ("gestão rogério"); as variáveis de ambiente, se existirem, têm prioridade. */
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://aygrqbzuqdnjxoaywhhw.supabase.co'
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'sb_publishable_7Y9p9PEmxyTYAiUOL8ermQ_ktMUNmM7'
 
 // VITE_LOCAL=1 (testes) força o modo só no navegador
 /** Identificador do projeto no Supabase (para abrir o SQL Editor certo). */
