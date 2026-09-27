@@ -20,7 +20,7 @@ try {
     const page = await browser.newPage({ viewport: vp })
     const errors = []
     page.on('pageerror', (e) => errors.push(e.message))
-    page.on('popup', (p) => p.close())
+    page.on('popup', async (p) => { if (shots) { await p.waitForLoadState(); await p.setViewportSize({ width: 900, height: 1250 }); await p.screenshot({ path: `${shots}/${vp.name}-popup-${Date.now()}.png`, fullPage: true }).catch(() => {}) } await p.close() })
     const go = async (h) => { await page.evaluate((h) => (location.hash = h), h); await page.waitForTimeout(250) }
     const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('rogerio-gestao-v1') || 'null'))
     const shot = async (n) => shots && page.screenshot({ path: `${shots}/${vp.name}-${n}.png`, fullPage: true })
@@ -32,7 +32,7 @@ try {
     await page.waitForTimeout(500)
     ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: tela de boas-vindas`)
     const names = await page.locator('.scope button').allInnerTexts()
-    ok(['RDL', 'Engefort', 'AV', 'Quira', 'Pessoal'].every((n) => names.some((x) => x.includes(n))), `${vp.name}: empresas RDL, Engefort, AV, Quira e Pessoal`)
+    ok(['Quira', 'RDL', 'Engforte', 'Pessoal'].every((n) => names.some((x) => x.includes(n))) && !names.some((x) => x.includes('AV')), `${vp.name}: principais no topo (Quira, RDL, Engforte, Pessoal) e AV em Outras`)
 
     // exemplo
     await page.getByText('Ver a plataforma com dados de exemplo').click()
@@ -41,7 +41,7 @@ try {
     ok((await stored())?.projects.length === 2, `${vp.name}: dados de exemplo carregados`)
     await shot('painel')
 
-    for (const [h, n] of [['#/agenda', 'agenda'], ['#/financeiro', 'financeiro'], ['#/obras', 'obras'], ['#/orcamentos', 'orcamentos'], ['#/equipe/diarias', 'diarias'], ['#/equipe/folha', 'folha'], ['#/equipe/empreitadas', 'empreitadas'], ['#/equipe/pessoas', 'pessoas'], ['#/cadastros', 'empresas'], ['#/cadastros/categorias', 'categorias'], ['#/config', 'ajustes']]) {
+    for (const [h, n] of [['#/agenda', 'agenda'], ['#/financeiro', 'financeiro'], ['#/obras', 'obras'], ['#/orcamentos', 'orcamentos'], ['#/equipe/diarias', 'diarias'], ['#/equipe/folha', 'folha'], ['#/equipe/empreitadas', 'empreitadas'], ['#/equipe/pessoas', 'pessoas'], ['#/cadastros', 'empresas'], ['#/perfil', 'perfil'], ['#/cadastros/categorias', 'categorias'], ['#/config', 'ajustes']]) {
       await go(h)
       await shot(n)
     }
@@ -50,7 +50,14 @@ try {
     // financeiro: relatórios e extrato
     await go('#/financeiro')
     await page.getByRole('tab', { name: 'Relatórios' }).click(); await page.waitForTimeout(200); await shot('relatorios')
+    await page.getByRole('tab', { name: 'Notas fiscais' }).click(); await page.waitForTimeout(200); await shot('notas')
     await page.getByRole('tab', { name: 'Extrato do mês' }).click(); await page.waitForTimeout(200)
+    // perfil da empresa
+    const rdl = (await stored() ?? {}).entities
+    await go('#/cadastros'); await page.locator('.entity a.row').nth(1).click(); await page.waitForTimeout(300)
+    ok(await page.getByText('48.624.017/0001-46').count() > 0, `${vp.name}: perfil da RDL com CNPJ`)
+    await shot('perfil-rdl')
+    void rdl
 
     // novo lançamento de saída
     const before = (await stored()).txs.length
@@ -118,22 +125,27 @@ try {
     const sale = d5.txs.filter((t) => t.projectId === pid && t.unitId)
     ok(sale.length === 11 && Math.abs(sale.reduce((s, t) => s + t.amount, 0) - 350000) < 0.01, `${vp.name}: venda com entrada + 10 parcelas`)
 
-    // orçamento → obra
+    // orçamento de escola (PDDE) → obra
     await go('#/orcamentos')
-    await page.getByRole('button', { name: '+ Novo orçamento' }).click(); await page.waitForTimeout(300)
-    await page.getByLabel('Cliente', { exact: true }).fill('Prefeitura Teste')
-    await page.getByLabel('Objeto').fill('Reforma escola teste')
-    await page.getByLabel('Descrição do item').first().fill('Pintura')
-    await page.getByLabel('Quantidade').first().fill('100')
-    await page.getByLabel('Preço unitário').first().fill('20')
-    await page.getByLabel('BDI').fill('25')
+    await page.getByRole('button', { name: '+ Orçamento para escola (PDDE)' }).click(); await page.waitForTimeout(300)
+    await page.getByLabel('Nome da APM').fill('E.E. Teste')
+    await page.getByLabel('CNPJ da APM').fill('11.111.111/0001-11')
+    await page.getByLabel('Descrição do item').first().fill('Manutenção elétrica')
+    await page.getByLabel('Valor total do item').first().fill('4000')
+    await page.getByRole('button', { name: '+ Serviço' }).click(); await page.waitForTimeout(150)
+    await page.getByLabel('Descrição do item').nth(1).fill('Troca de lâmpadas')
+    await page.getByLabel('Quantidade').nth(1).fill('10')
+    await page.getByLabel('Preço unitário').nth(1).fill('50')
     await page.waitForTimeout(200)
     await shot('orcamento')
+    await page.getByRole('button', { name: 'Ver para imprimir' }).click(); await page.waitForTimeout(500)
+    await shot('orcamento-pdf')
+    if (await page.locator('.modal').count()) { await page.locator('.modal-foot .btn.primary').last().click(); await page.waitForTimeout(200) }
     await page.getByRole('button', { name: 'Aprovado → criar obra' }).click()
     await page.locator('.modal-foot .btn').last().click(); await page.waitForTimeout(300)
     const d6 = await stored()
-    const np = d6.projects.find((p) => p.name === 'Reforma escola teste')
-    ok(np && np.contractValue === 2500 && np.budget === 2000, `${vp.name}: orçamento aprovado vira obra (contrato 2.500, custo 2.000)`)
+    const np = d6.projects.find((p) => p.client === 'E.E. Teste')
+    ok(np && np.contractValue === 4500 && np.kind === 'reforma_escola', `${vp.name}: orçamento PDDE (4.000 + 10×50) aprovado vira obra de escola de 4.500`)
 
     // agenda
     await go('#/agenda')

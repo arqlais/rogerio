@@ -1,6 +1,16 @@
 /* Modelo de dados. Tudo fica num único objeto (Data), salvo no navegador e,
    com a nuvem ligada, numa linha do Supabase por usuário. */
 
+/** Arquivo anexado (NF, contrato, orçamento assinado, foto). O conteúdo fica no Storage/IndexedDB. */
+export interface FileRef {
+  id: string
+  name: string
+  type: string
+  size: number
+  at: string
+  path?: string // caminho no Supabase Storage (sem isso, está no aparelho)
+}
+
 /** Carteira: cada empresa (CNPJ) ou a pessoa física (finanças pessoais). */
 export interface Entity {
   id: string
@@ -8,11 +18,23 @@ export interface Entity {
   kind: 'empresa' | 'pessoal'
   doc?: string // CNPJ ou CPF
   color: string
+  favorite?: boolean // aparece em destaque no topo
+  legalName?: string // razão social
+  municipalReg?: string // inscrição municipal
+  stateReg?: string // inscrição estadual
   logo?: string // imagem (data URL) usada nos orçamentos e recibos
+  footer?: string // imagem do rodapé do papel timbrado
+  watermark?: string // marca-d'água do fundo
+  tagline?: string // frase do rodapé (atividades)
   address?: string
+  district?: string
+  city?: string
+  cep?: string
   phone?: string
   email?: string
-  responsible?: string // engenheiro responsável / CREA
+  contactName?: string // "Pessoa responsável pela empresa" nos orçamentos
+  responsible?: string // responsável técnico (nome e CREA)
+  bank?: string // banco, agência e conta
   pix?: string
   notes?: string
 }
@@ -45,6 +67,7 @@ export interface Project {
   start?: string
   end?: string
   notes?: string
+  files?: FileRef[] // contrato, ART, projetos, fotos
 }
 
 export type UnitStatus = 'disponivel' | 'reservado' | 'vendido' | 'permuta'
@@ -108,6 +131,7 @@ export interface Tx {
   group?: string // parcelamento/repetição
   installment?: string // "2/10"
   settledBy?: string // adiantamento já descontado na folha (id do lançamento do salário)
+  files?: FileRef[] // nota fiscal, boleto, comprovante
   notes?: string
   createdAt: string
 }
@@ -146,6 +170,7 @@ export interface QuoteItem {
   unit: string // m², m³, un, vb…
   qty: number
   price: number // valor unitário
+  total?: number // valor total digitado direto (quando não há quantidade/preço unitário)
 }
 
 export type QuoteStatus = 'rascunho' | 'enviado' | 'aprovado' | 'recusado'
@@ -153,6 +178,13 @@ export type QuoteStatus = 'rascunho' | 'enviado' | 'aprovado' | 'recusado'
 /** Orçamento / proposta para cliente. */
 export interface Quote {
   id: string
+  model?: 'pdde' | 'padrao' // PDDE Paulista (APM de escola) ou orçamento comum
+  apmCnpj?: string
+  apmName?: string
+  subprogram?: string
+  exercise?: string
+  contactName?: string // pessoa responsável pela empresa
+  files?: FileRef[] // orçamento assinado e carimbado, fotos
   number: string
   entityId: string
   client: string
@@ -195,9 +227,24 @@ export interface Category {
   scope: 'empresa' | 'pessoal' | 'ambos'
 }
 
+/** Perfil do dono (aparece em contratos, recibos e na saudação). */
+export interface Profile {
+  fullName?: string
+  cpf?: string
+  rg?: string
+  profession?: string
+  crea?: string
+  phone?: string
+  email?: string
+  address?: string
+  photo?: string
+}
+
 export interface Settings {
   owner: string
+  profile?: Profile
   scope: string // 'all' ou id da carteira em foco
+  lastEntity?: string // última empresa usada nos formulários (já vem escolhida)
   payday: number // dia do pagamento dos fixos
   weekStart: number // 1 = segunda (fechamento das diárias)
 }

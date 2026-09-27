@@ -3,15 +3,16 @@ import { useStore } from '../store'
 import type { Tx } from '../types'
 import { METHODS, addMonths, money, today, uid } from '../utils'
 import { Field, Modal, MoneyInput, confirmDialog, toast } from './ui'
+import { Attachments } from './Attachments'
 
 type Repeat = 'none' | 'parcelas' | 'mensal'
 
 /** Formulário de lançamento: saída, entrada ou transferência (ex.: pró-labore da empresa para o pessoal). */
 export function TxForm({ initial, onClose }: { initial?: Partial<Tx>; onClose: () => void }) {
-  const { data, save, saveMany, remove } = useStore()
+  const { data, save, saveMany, remove, setSettings } = useStore()
   const editing = !!initial?.id && data.txs.some((t) => t.id === initial.id)
   const scope = data.settings.scope
-  const defEntity = initial?.entityId ?? (scope !== 'all' ? scope : data.entities[0]?.id) ?? ''
+  const defEntity = initial?.entityId ?? (scope !== 'all' ? scope : data.entities.find((e) => e.id === data.settings.lastEntity)?.id ?? data.entities[0]?.id) ?? ''
   const [t, setT] = useState<Tx>(() => ({
     id: uid(),
     kind: 'out',
@@ -50,6 +51,7 @@ export function TxForm({ initial, onClose }: { initial?: Partial<Tx>; onClose: (
     const category = t.category || (t.kind === 'transfer' ? 'Transferência' : t.kind === 'in' ? 'Outras receitas' : 'Outras despesas')
     const description = t.description.trim() || category
     const base: Tx = { ...t, category, description }
+    if (data.settings.lastEntity !== t.entityId) setSettings({ lastEntity: t.entityId })
     if (base.kind !== 'in') { delete base.gross; delete base.retention }
     if (!showGross) { delete base.gross; delete base.retention }
     if (editing || repeat === 'none') {
@@ -69,6 +71,7 @@ export function TxForm({ initial, onClose }: { initial?: Partial<Tx>; onClose: (
       amount: repeat === 'parcelas' && i === n - 1 ? Math.round((base.amount - each * (n - 1)) * 100) / 100 : each,
       due: addMonths(base.due, i),
       paid: i === 0 ? base.paid : undefined,
+      files: i === 0 ? base.files : undefined,
     }))
     saveMany('txs', items)
     toast(`${n} lançamentos criados`)
@@ -221,6 +224,9 @@ export function TxForm({ initial, onClose }: { initial?: Partial<Tx>; onClose: (
             </div>
           </Field>
         )}
+        <Field label={t.kind === 'in' ? 'Nota fiscal emitida / comprovante' : 'Nota fiscal / boleto / comprovante'} span={2}>
+          <Attachments files={t.files} onChange={(files) => set({ files })} label="Anexar NF ou comprovante" hint="PDF ou foto tirada no celular" />
+        </Field>
         <Field label="Observações" span={2}>
           <textarea rows={2} value={t.notes ?? ''} onChange={(e) => set({ notes: e.target.value })} aria-label="Observações" />
         </Field>

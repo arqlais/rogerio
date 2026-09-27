@@ -43,6 +43,8 @@ export function TxList({ txs, hide = [], empty, scope = 'all' }: { txs: Tx[]; hi
                   {!hide.includes('person') && t.personId && <> · {personName(data, t.personId)}</>}
                   {!hide.includes('entity') && t.kind !== 'transfer' && data.entities.length > 1 && <> · {entityName(data, t.entityId)}</>}
                   {t.accountId && <> · {accountName(data, t.accountId)}</>}
+                  {t.docNo && <> · {t.docNo}</>}
+                  {!!t.files?.length && <> · <span className="nf-tag">anexo</span></>}
                 </span>
               </div>
               <div className="tx-right">

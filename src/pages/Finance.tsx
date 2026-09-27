@@ -2,19 +2,22 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import type { Tx } from '../types'
 import { TxList } from '../components/TxList'
+import { TxForm } from '../components/TxForm'
+import { Badge } from '../components/ui'
 import { HBars, Stat, Tabs } from '../components/ui'
 import { accountName, addDays, addMonth, downloadFile, entityName, fmtDate, inScope, isLate, money, month, monthName, personName, projectName, signed, toCSV, today } from '../utils'
 
-type Tab = 'aberto' | 'extrato' | 'relatorio'
+type Tab = 'aberto' | 'extrato' | 'notas' | 'relatorio'
 
 export function Finance() {
   const [tab, setTab] = useState<Tab>('aberto')
   return (
     <div className="page">
       <div className="page-head"><h1>Financeiro</h1></div>
-      <Tabs value={tab} onChange={setTab} items={[['aberto', 'A pagar e a receber'], ['extrato', 'Extrato do mês'], ['relatorio', 'Relatórios']]} />
+      <Tabs value={tab} onChange={setTab} items={[['aberto', 'A pagar e a receber'], ['extrato', 'Extrato do mês'], ['notas', 'Notas fiscais'], ['relatorio', 'Relatórios']]} />
       {tab === 'aberto' && <Open />}
       {tab === 'extrato' && <Statement />}
+      {tab === 'notas' && <Invoices />}
       {tab === 'relatorio' && <Reports />}
     </div>
   )
@@ -206,6 +209,66 @@ function Reports() {
       {r.byProject.length > 0 && (
         <section className="card"><div className="card-head"><h2>Gasto por obra no período</h2></div><HBars rows={r.byProject.map(([k, v]) => [projectName(data, k), v])} /></section>
       )}
+    </>
+  )
+}
+
+/** Notas fiscais: emitidas (entradas) e recebidas (saídas), com o arquivo anexado. */
+function Invoices() {
+  const { data } = useStore()
+  const scope = data.settings.scope
+  const [ym, setYm] = useState(month(today()))
+  const [kind, setKind] = useState<'in' | 'out'>('in')
+  const [edit, setEdit] = useState<Tx | null>(null)
+  const [newTx, setNewTx] = useState(false)
+  const list = data.txs
+    .filter((t) => t.kind === kind && inScope(t, scope) && month(t.paid ?? t.due) === ym && (kind === 'in' || t.docNo || t.files?.length || t.category === 'Material de construção'))
+    .sort((a, b) => (a.paid ?? a.due).localeCompare(b.paid ?? b.due))
+  const gross = list.reduce((s, t) => s + (t.gross ?? t.amount), 0)
+  const ret = list.reduce((s, t) => s + (t.retention ?? 0), 0)
+  const missing = list.filter((t) => !t.files?.length).length
+  return (
+    <>
+      <div className="help">Anexe o PDF ou a foto de cada nota no lançamento. Aqui você vê as notas do mês e quais ainda estão <b>sem arquivo</b> — útil na hora de mandar para o contador.</div>
+      <div className="month-nav">
+        <div className="seg compact">
+          <button className={kind === 'in' ? 'on in' : 'in'} onClick={() => setKind('in')}>Emitidas (recebimentos)</button>
+          <button className={kind === 'out' ? 'on out' : 'out'} onClick={() => setKind('out')}>Recebidas (compras)</button>
+        </div>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+        <strong>{monthName(ym)}</strong>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+        <span style={{ flex: 1 }} />
+        {kind === 'in' && <button className="btn small primary" onClick={() => setNewTx(true)}>+ Lançar nota emitida</button>}
+      </div>
+      <div className="stats">
+        <Stat label={kind === 'in' ? 'Valor das notas' : 'Total em notas'} value={money(gross)} />
+        {kind === 'in' && <Stat label="Retenções (ISS, INSS…)" value={money(ret)} />}
+        <Stat label={kind === 'in' ? 'Líquido' : 'Quantidade'} value={kind === 'in' ? money(gross - ret) : String(list.length)} tone="good" />
+        <Stat label="Sem arquivo anexado" value={String(missing)} tone={missing ? 'warn' : undefined} />
+      </div>
+      {!list.length ? <p className="muted">Nenhuma nota neste mês.</p> : (
+        <div className="card flush"><div className="compare">
+          <table className="table">
+            <thead><tr><th>Data</th><th>Nº</th><th>{kind === 'in' ? 'Tomador / obra' : 'Fornecedor'}</th><th>Empresa</th><th className="r">Valor</th>{kind === 'in' && <th className="r">Retenção</th>}<th>Arquivo</th></tr></thead>
+            <tbody>
+              {list.map((t) => (
+                <tr key={t.id} className="clickable" onClick={() => setEdit(t)}>
+                  <td>{fmtDate(t.paid ?? t.due).slice(0, 5)}</td>
+                  <td>{t.docNo || '—'}</td>
+                  <td>{personName(data, t.personId) || projectName(data, t.projectId) || t.description}<br /><small className="muted">{t.description}</small></td>
+                  <td>{entityName(data, t.entityId)}</td>
+                  <td className="r">{money(t.gross ?? t.amount)}</td>
+                  {kind === 'in' && <td className="r">{t.retention ? money(t.retention) : '—'}</td>}
+                  <td>{t.files?.length ? <Badge tone="good">{t.files.length} anexo(s)</Badge> : <Badge tone="warn">anexar</Badge>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div></div>
+      )}
+      {edit && <TxForm initial={edit} onClose={() => setEdit(null)} />}
+      {newTx && <TxForm initial={{ kind: 'in', category: 'Medição de obra' }} onClose={() => setNewTx(false)} />}
     </>
   )
 }

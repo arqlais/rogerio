@@ -13,6 +13,7 @@ import { Team } from './pages/Team'
 import { Registry } from './pages/Registry'
 import { SettingsPage } from './pages/Settings'
 import { PersonDetail } from './pages/PersonDetail'
+import { EntityProfile, OwnerProfile } from './pages/Profiles'
 import { Quotes } from './pages/Quotes'
 import { Agenda } from './pages/Agenda'
 
@@ -56,6 +57,8 @@ function Shell() {
   else if (page === 'pessoa' && route[1]) content = <PersonDetail id={route[1]} />
   else if (page === 'cadastros') content = <Registry tab={route[1]} />
   else if (page === 'config') content = <SettingsPage />
+  else if (page === 'empresa' && route[1]) content = <EntityProfile id={route[1]} />
+  else if (page === 'perfil') content = <OwnerProfile />
   else if (page === 'orcamentos') content = <Quotes id={route[1]} />
   else if (page === 'agenda') content = <Agenda />
   else content = <Dashboard onNewTx={setTx} />
@@ -74,12 +77,16 @@ function Shell() {
         </div>
         <nav>
           {NAV.map(([k, l, i]) => (
-            <a key={k} href={`#/${k}`} className={page === k || (k === 'equipe' && page === 'pessoa') ? 'on' : ''}>
+            <a key={k} href={`#/${k}`} className={page === k || (k === 'equipe' && page === 'pessoa') || (k === 'cadastros' && page === 'empresa') || (k === 'config' && page === 'perfil') ? 'on' : ''}>
               <span className="nav-i">{i}</span>
               {l}
             </a>
           ))}
         </nav>
+        <a className="me" href="#/perfil">
+          {data.settings.profile?.photo ? <img src={data.settings.profile.photo} alt="" /> : <span className="avatar">{(data.settings.profile?.fullName || data.settings.owner || 'R').slice(0, 1)}</span>}
+          <span>{data.settings.profile?.fullName || data.settings.owner}<small>{data.settings.profile?.profession || 'meu perfil'}</small></span>
+        </a>
         <div className="sync">{sync === 'local' ? 'Salvo neste aparelho' : sync === 'salvando' ? 'Salvando…' : sync === 'erro' ? '⚠ Erro ao salvar na nuvem' : '✓ Salvo na nuvem'}</div>
       </aside>
 
@@ -87,12 +94,18 @@ function Shell() {
         <header className="topbar">
           <div className="scope" role="radiogroup" aria-label="Ver finanças de">
             <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
-            {data.entities.map((e) => (
-              <button key={e.id} className={scope === e.id ? 'on' : ''} onClick={() => setSettings({ scope: e.id })} style={{ ['--c' as string]: e.color }}>
+            {data.entities.filter((e) => e.favorite || e.id === scope).map((e) => (
+              <button key={e.id} className={scope === e.id ? 'on' : ''} onClick={() => setSettings({ scope: e.id })}>
                 <span className="dot" style={{ background: e.color }} />
                 {e.name}
               </button>
             ))}
+            {data.entities.some((e) => !e.favorite && e.id !== scope) && (
+              <select className="scope-more" value="" onChange={(e) => e.target.value && setSettings({ scope: e.target.value })} aria-label="Outras empresas">
+                <option value="">Outras…</option>
+                {data.entities.filter((e) => !e.favorite && e.id !== scope).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            )}
           </div>
           <div className="new-wrap">
             <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu">+ Lançar</button>

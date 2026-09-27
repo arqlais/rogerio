@@ -5,6 +5,7 @@ import type { Contract, Project, Tx, Unit } from '../types'
 import { TxForm } from '../components/TxForm'
 import { TxList } from '../components/TxList'
 import { ContractForm } from '../components/ContractForm'
+import { Attachments } from '../components/Attachments'
 import { Badge, Empty, Field, HBars, Modal, MoneyInput, NumInput, Progress, Stat, Tabs, confirmDialog, toast } from '../components/ui'
 import { KIND_LABEL, STATUS_LABEL, UNIT_LABEL, addMonths, contractPaid, entityName, fmtDate, money, num, personName, projectStats, today, uid } from '../utils'
 
@@ -138,10 +139,10 @@ export function ProjectForm({ initial, onClose }: { initial: Partial<Project>; o
   )
 }
 
-type DTab = 'resumo' | 'lancamentos' | 'equipe' | 'unidades'
+type DTab = 'resumo' | 'lancamentos' | 'equipe' | 'unidades' | 'documentos'
 
 export function ProjectDetail({ id }: { id: string }) {
-  const { data } = useStore()
+  const { data, save } = useStore()
   const p = data.projects.find((x) => x.id === id)
   const [tab, setTab] = useState<DTab>(p?.kind === 'incorporacao' ? 'unidades' : 'resumo')
   const [edit, setEdit] = useState(false)
@@ -161,7 +162,7 @@ export function ProjectDetail({ id }: { id: string }) {
   const units = data.units.filter((u) => u.projectId === p.id)
   const incorp = p.kind === 'incorporacao'
 
-  const tabs: [DTab, string, number?][] = [['resumo', 'Resumo'], ['lancamentos', 'Lançamentos', txs.length], ['equipe', 'Mão de obra', contracts.length + byWorker.length]]
+  const tabs: [DTab, string, number?][] = [['resumo', 'Resumo'], ['lancamentos', 'Lançamentos', txs.length], ['equipe', 'Mão de obra', contracts.length + byWorker.length], ['documentos', 'Documentos', (p.files?.length ?? 0) + txs.filter((t) => t.files?.length).length]]
   if (incorp || units.length) tabs.splice(1, 0, ['unidades', 'Apartamentos', units.length])
 
   return (
@@ -234,6 +235,20 @@ export function ProjectDetail({ id }: { id: string }) {
       )}
 
       {tab === 'unidades' && <Units project={p} />}
+
+      {tab === 'documentos' && (
+        <>
+          <section className="card">
+            <div className="card-head"><h2>Documentos da obra</h2></div>
+            <p className="muted small">Contrato, ART, projetos, alvará, fotos, orçamento assinado…</p>
+            <Attachments files={p.files} onChange={(files) => save('projects', { ...p, files })} label="Anexar documento" />
+          </section>
+          <section className="card">
+            <div className="card-head"><h2>Notas e comprovantes dos lançamentos</h2></div>
+            {txs.filter((t) => t.files?.length).length ? <TxList txs={txs.filter((t) => t.files?.length)} hide={['project']} /> : <p className="muted">Nenhum lançamento desta obra tem nota anexada ainda. Abra o lançamento e use "Anexar NF".</p>}
+          </section>
+        </>
+      )}
 
       {edit && <ProjectForm initial={p} onClose={() => setEdit(false)} />}
       {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}

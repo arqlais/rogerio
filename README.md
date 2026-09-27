@@ -1,13 +1,13 @@
 # Gestão de obras · Rogério
 
-Plataforma de gestão para as empresas de engenharia **RDL, Engefort, AV e Quira** e para as finanças pessoais: obras, equipe, orçamentos, agenda e todo o financeiro, com linguagem simples e funcionando no computador e no celular.
+Plataforma de gestão para as empresas de engenharia **Quira, RDL e Engforte** (principais) e **AV** e para as finanças pessoais: obras, equipe, orçamentos, agenda e todo o financeiro, com linguagem simples e funcionando no computador e no celular.
 
 ## O que tem
 
 | Área | O que faz |
 | --- | --- |
 | **Início** | Saldo das contas, a receber, a pagar (incluindo diárias em aberto), resultado do mês, contas vencidas, próximos 15 dias com botão **Paguei / Recebi**, agenda de hoje e amanhã, gráfico de 6 meses e obras em andamento |
-| **Filtro no topo** | Ver **Tudo**, uma empresa (RDL, Engefort, AV, Quira) ou o **Pessoal** — cada uma tem o próprio caixa |
+| **Filtro no topo** | Ver **Tudo**, uma empresa ou o **Pessoal** — cada uma tem o próprio caixa; os formulários já vêm com a última empresa usada |
 | **Financeiro** | A pagar e a receber (vencidos, próximos 7 dias, depois), extrato do mês com busca e filtros, **relatórios** (resultado por empresa, saídas/entradas por categoria, gasto por obra), exportação **CSV para o contador** |
 | **Lançamentos** | Saída, entrada ou **transferência** (pró-labore / distribuição de lucros da empresa para o pessoal); parcelar ou repetir todo mês; nota com **retenções** (ISS, INSS…) guarda bruto e líquido; vincula obra, pessoa, conta e nº da nota |
 | **Obras** | Reforma de escola, reforma, construção, incorporação. Contrato, custo previsto × gasto, recebido, lucro previsto, onde o dinheiro foi, empreitadas e diaristas da obra |
@@ -16,7 +16,9 @@ Plataforma de gestão para as empresas de engenharia **RDL, Engefort, AV e Quira
 | **Equipe · Fixos** | Salário do mês com **desconto automático dos vales**, encargos estimados, lançado em "A pagar" para o dia do pagamento |
 | **Equipe · Empreitadas** | Valor combinado, % executado e pagamentos — avisa quando pagou mais do que foi feito |
 | **Pessoas** | Funcionários fixos, diaristas, empreiteiros, fornecedores e clientes, com histórico de pagamentos, Pix e WhatsApp |
-| **Orçamentos** | Itens por etapa (un., qtd., preço), BDI, desconto, prazo, pagamento, validade; **PDF com o logotipo e a cor da empresa**; aprovado → vira obra com contrato e custo previsto |
+| **Orçamentos** | Modelo **PDDE Paulista** (APM da escola: destinado a, dados do proponente, serviços) igual aos modelos das empresas, no **papel timbrado** de cada uma (logo, marca-d'água e rodapé), com espaço para carimbo e assinatura; modelo comum com etapas, BDI e desconto; anexar o orçamento assinado; aprovado → vira obra |
+| **Notas fiscais** | Anexe o PDF/foto da NF em qualquer lançamento; aba Notas fiscais mostra as emitidas e recebidas do mês e quais estão sem arquivo; documentos da obra (contrato, ART, alvará) |
+| **Perfis** | Perfil de cada empresa (razão social, CNPJ, inscrição municipal, endereço, contatos, banco, Pix, papel timbrado) e o perfil do Rogério; empresas **principais** (★) ficam no topo e as outras em "Outras…"; comparação lado a lado das empresas no Início |
 | **Agenda** | Calendário do mês com compromissos (visitas, reuniões, prazos, pessoal), repetição semanal/mensal, contas a pagar/receber e términos de obra |
 | **Empresas** | CNPJ, logotipo, endereço, responsável técnico, contas bancárias com saldo inicial; categorias editáveis |
 | **Ajustes** | Nome, dia do pagamento, início da semana das diárias, backup/restauração, dados de exemplo |
@@ -39,7 +41,7 @@ No GitHub: **Settings → Pages → Source: GitHub Actions**. Endereço: `https:
 
 Por padrão usa o mesmo projeto Supabase do Controle da Laís, numa tabela separada (`engenharia`). Cada usuário só vê os próprios dados (RLS).
 
-1. No Supabase do projeto: **SQL Editor → New query**, cole [`supabase/schema.sql`](supabase/schema.sql) e clique **Run**.
+1. No Supabase do projeto: **SQL Editor → New query**, cole [`supabase/schema.sql`](supabase/schema.sql) e clique **Run** (cria a tabela `engenharia` e a pasta privada `documentos` para as notas). Se esquecer, o próprio sistema mostra o SQL com um botão para copiar.
 2. **Authentication → Users → Add user**: e-mail e senha do Rogério, marcando *Auto Confirm User*.
 3. **Authentication → URL Configuration**: adicione `https://arqlais.github.io/rogerio/` em *Redirect URLs* (para o "esqueci minha senha").
 

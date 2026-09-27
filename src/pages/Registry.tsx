@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Account, Category, Entity } from '../types'
+import { EntityForm } from './Profiles'
 import { Field, Modal, MoneyInput, Tabs, confirmDialog, toast } from '../components/ui'
 import { accountBalance, money, today, uid } from '../utils'
 
@@ -17,7 +18,7 @@ export function Registry({ tab }: { tab?: string }) {
 }
 
 /** Reduz a imagem do logo para no máximo 480px (fica leve para salvar e sincronizar). */
-export function readLogo(file: File): Promise<string> {
+export function readLogo(file: File, max = 480): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader()
     r.onerror = reject
@@ -25,7 +26,7 @@ export function readLogo(file: File): Promise<string> {
       const img = new Image()
       img.onerror = reject
       img.onload = () => {
-        const s = Math.min(1, 480 / Math.max(img.width, img.height))
+        const s = Math.min(1, max / Math.max(img.width, img.height))
         const c = document.createElement('canvas')
         c.width = Math.round(img.width * s)
         c.height = Math.round(img.height * s)
@@ -39,23 +40,26 @@ export function readLogo(file: File): Promise<string> {
 }
 
 function Entities() {
-  const { data } = useStore()
+  const { data, save } = useStore()
   const [edit, setEdit] = useState<Partial<Entity> | null>(null)
   const [acc, setAcc] = useState<Partial<Account> | null>(null)
   return (
     <>
-      <div className="help">Cada empresa (CNPJ) e o seu <b>pessoal</b> têm o próprio caixa. No topo da tela você escolhe qual quer ver — ou <b>Tudo</b>. O pró-labore e a distribuição de lucros são lançados como <b>transferência</b> da empresa para o pessoal.</div>
+      <div className="help">Marque com ★ as empresas <b>principais</b>: elas aparecem no topo; as outras ficam em "Outras…". Cada empresa (CNPJ) e o seu <b>pessoal</b> têm o próprio caixa. No topo da tela você escolhe qual quer ver — ou <b>Tudo</b>. O pró-labore e a distribuição de lucros são lançados como <b>transferência</b> da empresa para o pessoal.</div>
       <div className="entities">
-        {data.entities.map((e) => {
+        {[...data.entities].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite)).map((e) => {
           const accounts = data.accounts.filter((a) => a.entityId === e.id)
           return (
-            <section key={e.id} className="card entity" style={{ borderTopColor: e.color }}>
+            <section key={e.id} className={`card entity ${e.favorite ? '' : 'minor'}`} style={{ borderTopColor: e.color }}>
               <div className="card-head">
-                <div className="row">
+                <a className="row" href={`#/empresa/${e.id}`}>
                   {e.logo ? <img className="logo-sm" src={e.logo} alt="" /> : <span className="logo-sm ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}
-                  <div><h2>{e.name}</h2><small className="muted">{e.kind === 'pessoal' ? 'Pessoa física' : 'Empresa'}{e.doc ? ` · ${e.doc}` : ''}</small></div>
+                  <div><h2>{e.name}</h2><small className="muted">{e.kind === 'pessoal' ? 'Pessoa física' : e.legalName || 'Empresa'}{e.doc ? ` · ${e.doc}` : ''}</small></div>
+                </a>
+                <div className="row">
+                  <button className={`icon-btn star ${e.favorite ? 'on' : ''}`} onClick={() => save('entities', { ...e, favorite: !e.favorite })} title={e.favorite ? 'Principal (clique para tirar)' : 'Marcar como principal'} aria-label="Principal">{e.favorite ? '★' : '☆'}</button>
+                  <a className="btn small" href={`#/empresa/${e.id}`}>Perfil</a>
                 </div>
-                <button className="btn small" onClick={() => setEdit(e)}>Editar</button>
               </div>
               {accounts.map((a) => (
                 <div key={a.id} className={`kv clickable ${a.archived ? 'muted' : ''}`} onClick={() => setAcc(a)}>
@@ -71,58 +75,6 @@ function Entities() {
       {edit && <EntityForm initial={edit} onClose={() => setEdit(null)} />}
       {acc && <AccountForm initial={acc} onClose={() => setAcc(null)} />}
     </>
-  )
-}
-
-const COLORS = ['#e8772e', '#2f6fb0', '#2f9e6b', '#8a4fbf', '#c0392b', '#d4a017', '#16a2b8', '#5b6573']
-
-function EntityForm({ initial, onClose }: { initial: Partial<Entity>; onClose: () => void }) {
-  const { data, save, saveMany, remove } = useStore()
-  const editing = !!initial.id
-  const [e, setE] = useState<Entity>(() => ({ id: uid(), name: '', kind: 'empresa', color: COLORS[data.entities.length % COLORS.length], ...initial }))
-  const set = (x: Partial<Entity>) => setE((o) => ({ ...o, ...x }))
-  const submit = () => {
-    if (!e.name.trim()) return toast('Informe o nome', 'err')
-    save('entities', { ...e, name: e.name.trim() })
-    if (!editing) saveMany('accounts', [{ id: uid(), entityId: e.id, name: e.kind === 'pessoal' ? 'Conta pessoal' : `Conta ${e.name.trim()}`, initial: 0, initialDate: today() }])
-    onClose()
-  }
-  const del = async () => {
-    const used = data.txs.some((t) => t.entityId === e.id || t.toEntityId === e.id) || data.projects.some((p) => p.entityId === e.id)
-    if (used) return toast('Esta carteira tem lançamentos ou obras. Não é possível excluir.', 'err')
-    if (data.entities.length <= 1) return
-    if (!(await confirmDialog(`Excluir ${e.name}?`, 'Excluir'))) return
-    remove('entities', e.id)
-    data.accounts.filter((a) => a.entityId === e.id).forEach((a) => remove('accounts', a.id))
-    onClose()
-  }
-  const upload = async (f?: File) => {
-    if (!f) return
-    try { set({ logo: await readLogo(f) }) } catch { toast('Não consegui ler a imagem', 'err') }
-  }
-  return (
-    <Modal title={editing ? `Editar ${e.name}` : 'Nova empresa'} onClose={onClose} footer={<>{editing && <button className="btn danger ghost" onClick={del}>Excluir</button>}<span style={{ flex: 1 }} /><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" onClick={submit}>Salvar</button></>}>
-      <div className="grid-form">
-        <Field label="Nome" span={2}><input value={e.name} onChange={(x) => set({ name: x.target.value })} autoFocus aria-label="Nome da empresa" /></Field>
-        <Field label="Tipo"><select value={e.kind} onChange={(x) => set({ kind: x.target.value as Entity['kind'] })} aria-label="Tipo"><option value="empresa">Empresa (CNPJ)</option><option value="pessoal">Pessoal (CPF)</option></select></Field>
-        <Field label={e.kind === 'empresa' ? 'CNPJ' : 'CPF'}><input value={e.doc ?? ''} onChange={(x) => set({ doc: x.target.value })} aria-label="CNPJ ou CPF" /></Field>
-        <Field label="Cor"><div className="colors">{COLORS.map((c) => <button key={c} className={c === e.color ? 'on' : ''} style={{ background: c }} onClick={() => set({ color: c })} aria-label={`Cor ${c}`} />)}</div></Field>
-        <Field label="Logotipo" hint="Aparece nos orçamentos e recibos">
-          <div className="row">
-            {e.logo && <img className="logo-sm" src={e.logo} alt="Logo" />}
-            <label className="btn small">Escolher imagem<input type="file" accept="image/*" hidden onChange={(x) => upload(x.target.files?.[0])} /></label>
-            {e.logo && <button className="link small" onClick={() => set({ logo: undefined })}>remover</button>}
-          </div>
-        </Field>
-        {e.kind === 'empresa' && <>
-          <Field label="Endereço" span={2}><input value={e.address ?? ''} onChange={(x) => set({ address: x.target.value })} aria-label="Endereço" /></Field>
-          <Field label="Telefone"><input value={e.phone ?? ''} onChange={(x) => set({ phone: x.target.value })} aria-label="Telefone" /></Field>
-          <Field label="E-mail"><input value={e.email ?? ''} onChange={(x) => set({ email: x.target.value })} aria-label="E-mail" /></Field>
-          <Field label="Responsável técnico (nome e CREA)" span={2}><input value={e.responsible ?? ''} onChange={(x) => set({ responsible: x.target.value })} placeholder="Eng. Civil Rogério … – CREA …" aria-label="Responsável técnico" /></Field>
-          <Field label="Chave Pix / dados bancários" span={2}><input value={e.pix ?? ''} onChange={(x) => set({ pix: x.target.value })} aria-label="Pix" /></Field>
-        </>}
-      </div>
-    </Modal>
   )
 }
 

@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { CLOUD, fetchRemote, pushRemote } from './cloud'
 import { ARTIFACT } from './env'
-import type { Category, Collection, Data, Settings } from './types'
+import { setFilesUser } from './files'
+import schemaSql from '../supabase/schema.sql?raw'
+import type { Category, Collection, Data, Entity, Settings } from './types'
+import { BRAND_ASSETS } from './brandAssets'
 import { addDays, addMonths, today, uid } from './utils'
 
 const KEY = 'rogerio-gestao-v1'
@@ -22,22 +25,56 @@ export const DEFAULT_CATEGORIES = (): Category[] => [
 ]
 
 export const DEFAULT_SETTINGS: Settings = { owner: 'Rogério', scope: 'all', payday: 5, weekStart: 1 }
+const withProfile = (s: Settings): Settings => ({ ...s, profile: { ...DEFAULT_PROFILE, ...(s.profile ?? {}) } })
 
-const COMPANIES: [string, string][] = [['RDL', '#e8772e'], ['Engefort', '#2f6fb0'], ['AV', '#2f9e6b'], ['Quira', '#8a4fbf']]
+/** Dados das empresas (tirados dos orçamentos, NF, contrato e placa de obra). Tudo editável no perfil da empresa. */
+const COMPANIES: Omit<Entity, 'id'>[] = [
+  {
+    name: 'Quira', kind: 'empresa', color: '#1f3a68', favorite: true,
+    legalName: 'Dinéia Alves do Amaral LTDA', doc: '29.266.779/0001-73',
+    address: 'Rua dos Missionários, 211', district: 'Jardim Santo André', city: 'Santo André – SP',
+    phone: '(11) 97467-5293', email: 'quira.construcoes@gmail.com', contactName: 'Dinéia',
+    tagline: 'QUIRA - Prestadora Eficiente em Construções e Reformas (Projetos, Laudos Técnicos e Perícias)',
+    ...BRAND_ASSETS.quira,
+  },
+  {
+    name: 'RDL', kind: 'empresa', color: '#f08a2c', favorite: true,
+    legalName: 'RDL Engenharia Representações e Construções LTDA', doc: '48.624.017/0001-46', municipalReg: '328612',
+    address: 'Rua Luziânia, 119', district: 'Sítio dos Vianas', city: 'Santo André – SP', cep: '09169-150',
+    phone: '(11) 97520-8296', email: 'roger.rdl76@yahoo.com.br', contactName: 'Rogério',
+    responsible: 'Eng. Rogério Francisco Vieira – CREA-SP 5070438360',
+    bank: 'Nu Pagamentos S.A. – Banco 260 – Agência 0001 – Conta 43520212-8', pix: 'roger.rdl76@yahoo.com.br',
+    tagline: 'ENGENHARIA E REPRESENTAÇÕES - CONSTRUÇÕES E REFORMAS - COMÉRCIO VAREJISTA E ATACADISTA',
+    ...BRAND_ASSETS.rdl,
+  },
+  {
+    name: 'Engforte', kind: 'empresa', color: '#4caf50', favorite: true,
+    legalName: 'ENGFORTE Construção e Empreendimento LTDA', doc: '53.059.975/0001-51',
+    address: 'Rua dos Missionários, 227', district: 'Jardim Santo André', city: 'Santo André – SP',
+    phone: '(11) 95123-3515', email: 'comercial.engforte@gmail.com', contactName: 'Laís',
+    ...BRAND_ASSETS.engforte,
+  },
+  { name: 'AV', kind: 'empresa', color: '#8a4fbf' },
+]
+
+export const DEFAULT_PROFILE = {
+  fullName: 'Rogério Francisco Vieira', cpf: '152.551.248-00', profession: 'Engenheiro Civil', crea: 'CREA-SP 5070438360',
+  phone: '(11) 97520-8296', email: 'roger.rdl76@yahoo.com.br',
+}
 
 export function emptyData(): Data {
   const start = today()
   const entities: Data['entities'] = [
-    ...COMPANIES.map(([name, color]) => ({ id: uid(), name, kind: 'empresa' as const, doc: '', color })),
-    { id: uid(), name: 'Pessoal', kind: 'pessoal', doc: '', color: '#5b6573' },
+    ...COMPANIES.map((c) => ({ ...c, id: uid() })),
+    { id: uid(), name: 'Pessoal', kind: 'pessoal', doc: DEFAULT_PROFILE.cpf, color: '#5b6573', favorite: true },
   ]
   return {
-    version: 1,
+    version: 2,
     entities,
     accounts: entities.map((e) => ({ id: uid(), entityId: e.id, name: e.kind === 'pessoal' ? 'Conta pessoal' : `Conta ${e.name}`, initial: 0, initialDate: start })),
     projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [],
     categories: DEFAULT_CATEGORIES(),
-    settings: { ...DEFAULT_SETTINGS },
+    settings: withProfile({ ...DEFAULT_SETTINGS }),
   }
 }
 
@@ -45,7 +82,8 @@ export function emptyData(): Data {
 export function sampleData(): Data {
   const d = emptyData()
   const t = today()
-  const [e1, e2] = d.entities
+  const e1 = d.entities[1] // RDL
+  const e2 = d.entities[2] // Engforte
   const pess = d.entities.find((e) => e.kind === 'pessoal')!
   const start = addDays(t, -60)
   d.accounts.forEach((a) => { a.initialDate = start })
@@ -114,12 +152,12 @@ export function sampleData(): Data {
     { id: uid(), title: 'Reunião na prefeitura – 2ª medição', date: addDays(t, 1), time: '14:30', kind: 'reuniao', projectId: escola.id, place: 'Secretaria de Obras' },
     { id: uid(), title: 'Pagar diaristas', date: addDays(t, (6 - new Date().getDay() + 7) % 7), kind: 'compromisso', repeat: 'semanal' },
   )
-  d.quotes.push({ id: uid(), number: `001/${t.slice(0, 4)}`, entityId: e2.id, client: 'Escola Estadual Exemplo', title: 'Reforma dos banheiros e pintura', date: addDays(t, -5), validDays: 30, deadline: '60 dias', payment: '30% na assinatura e o restante conforme medições.', bdi: 25, discount: 0, status: 'enviado', address: 'Bairro Centro',
+  d.quotes.push({ id: uid(), model: 'pdde', number: `001/${t.slice(0, 4)}`, entityId: e1.id, client: '', title: '', apmName: 'E.E. Escola Exemplo', apmCnpj: '00.000.000/0001-00', subprogram: 'PDDE Paulista - Manutenção', exercise: t.slice(0, 4), contactName: 'Rogério',
+    date: addDays(t, -5), validDays: 20, payment: 'Após apresentação da nota fiscal', bdi: 0, discount: 0, status: 'enviado',
     items: [
-      { id: uid(), group: '1. Serviços preliminares', description: 'Demolição de revestimentos cerâmicos', unit: 'm²', qty: 120, price: 28 },
-      { id: uid(), group: '1. Serviços preliminares', description: 'Retirada de entulho com caçamba', unit: 'un', qty: 4, price: 450 },
-      { id: uid(), group: '2. Revestimentos', description: 'Revestimento cerâmico 30x60 (material e mão de obra)', unit: 'm²', qty: 120, price: 115 },
-      { id: uid(), group: '3. Pintura', description: 'Pintura acrílica em paredes, 2 demãos', unit: 'm²', qty: 850, price: 22 },
+      { id: uid(), description: 'Manutenção elétrica da sala Maker', unit: '', qty: 0, price: 0, total: 4000 },
+      { id: uid(), description: 'Reparação de porta da sala Maker', unit: '', qty: 0, price: 0, total: 2500 },
+      { id: uid(), description: 'Troca de lâmpadas', unit: 'un', qty: 30, price: 50 },
     ] })
   d.settings.owner = 'Rogério'
   return d
@@ -128,13 +166,27 @@ export function sampleData(): Data {
 /** Completa dados antigos/incompletos com os campos novos. */
 function normalize(raw: Partial<Data>): Data {
   const base = emptyData()
+  // versão 1 → 2: completa as empresas com os dados e logotipos reais (sem apagar o que já foi preenchido)
+  if ((raw.version ?? 1) < 2 && raw.entities) {
+    raw = {
+      ...raw,
+      version: 2,
+      entities: raw.entities.map((e) => {
+        const key = e.name.toLowerCase().replace('engefort', 'engforte')
+        const def = COMPANIES.find((c) => c.name.toLowerCase() === key)
+        if (!def) return e.kind === 'pessoal' ? { ...e, favorite: true, doc: e.doc || DEFAULT_PROFILE.cpf } : e
+        const merged: Entity = { ...def, ...Object.fromEntries(Object.entries(e).filter(([, v]) => v !== '' && v !== undefined)), id: e.id } as Entity
+        return { ...merged, name: def.name, color: def.color, favorite: def.favorite }
+      }),
+    }
+  }
   return {
     ...base,
     ...raw,
     categories: raw.categories?.length ? raw.categories : base.categories,
     quotes: raw.quotes ?? [],
     events: raw.events ?? [],
-    settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
+    settings: withProfile({ ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) }),
   } as Data
 }
 
@@ -166,6 +218,7 @@ function loadLocal(): Data | null {
 }
 
 export function StoreProvider({ children, userId, userEmail }: { children: ReactNode; userId?: string; userEmail?: string }) {
+  if (userId) setFilesUser(userId)
   const [data, setData] = useState<Data>(() => loadLocal() ?? (ARTIFACT ? sampleData() : emptyData()))
   const [ready, setReady] = useState(!userId)
   const [sync, setSync] = useState<Sync>(userId ? 'salvando' : 'local')
@@ -233,18 +286,37 @@ export function StoreProvider({ children, userId, userEmail }: { children: React
   const replaceAll = useCallback((d: Data) => setData(normalize(d)), [])
   const setSettings = useCallback((s: Partial<Settings>) => setData((d) => ({ ...d, settings: { ...d.settings, ...s } })), [])
 
-  if (loadError)
-    return (
-      <div className="center-screen">
-        <div className="card" style={{ maxWidth: 480 }}>
-          <h2>Não consegui abrir os dados na nuvem</h2>
-          <p className="muted">Confira se o arquivo <b>supabase/schema.sql</b> foi executado no Supabase (SQL Editor → Run) e tente de novo.</p>
-          <p className="muted small">Detalhe: {loadError}</p>
-          <button className="btn primary" onClick={() => location.reload()}>Tentar de novo</button>
-        </div>
-      </div>
-    )
+  if (loadError) return <CloudSetup error={loadError} />
   if (!ready) return <div className="center-screen"><div className="spinner" /></div>
 
   return <Ctx.Provider value={{ data, update, save, saveMany, remove, replaceAll, setSettings, sync, userEmail }}>{children}</Ctx.Provider>
+}
+
+/** Tela quando a tabela ainda não existe no Supabase: mostra o SQL pronto para copiar. */
+function CloudSetup({ error }: { error: string }) {
+  const [copied, setCopied] = useState(false)
+  const missing = /schema cache|does not exist|relation/i.test(error)
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(schemaSql); setCopied(true) } catch { /* seleciona o texto abaixo */ }
+  }
+  return (
+    <div className="center-screen">
+      <div className="card setup">
+        <h2>{missing ? 'Falta um passo no Supabase (uma vez só)' : 'Não consegui abrir os dados na nuvem'}</h2>
+        {missing ? (
+          <ol>
+            <li>Clique em <b>Copiar SQL</b>.</li>
+            <li>Abra o <a className="link" href="https://supabase.com/dashboard/project/_/sql/new" target="_blank" rel="noreferrer">SQL Editor do Supabase</a> (projeto do Controle), cole e clique em <b>Run</b>.</li>
+            <li>Volte aqui e clique em <b>Tentar de novo</b>.</li>
+          </ol>
+        ) : <p className="muted">Verifique a internet e tente de novo.</p>}
+        <p className="muted small">Detalhe: {error}</p>
+        <div className="row wrap">
+          {missing && <button className="btn" onClick={copy}>{copied ? 'Copiado ✓' : 'Copiar SQL'}</button>}
+          <button className="btn primary" onClick={() => location.reload()}>Tentar de novo</button>
+        </div>
+        {missing && <textarea className="sql" readOnly value={schemaSql} onFocus={(e) => e.target.select()} aria-label="SQL para rodar no Supabase" />}
+      </div>
+    </div>
+  )
 }

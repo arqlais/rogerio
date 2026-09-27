@@ -80,6 +80,8 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
         <Stat label={`Resultado de ${monthName(ym).split(' ')[0]}`} value={money(m.result)} sub={`previsto no mês: ${money(m.forecast)}`} tone={m.result < 0 ? 'bad' : 'good'} />
       </div>
 
+      {scope === 'all' && <Compare />}
+
       {(late.length > 0 || pendingDaily > 0) && (
         <div className="alerts">
           {late.filter((x) => x.kind === 'out').length > 0 && (
@@ -162,5 +164,47 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
         </section>
       )}
     </div>
+  )
+}
+
+/** Resumo lado a lado das empresas (e do pessoal) para comparar. */
+function Compare() {
+  const { data, setSettings } = useStore()
+  const ym = month(today())
+  const rows = [...data.entities].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || Number(a.kind === 'pessoal') - Number(b.kind === 'pessoal')).map((e) => {
+    const bal = data.accounts.filter((a) => a.entityId === e.id && !a.archived).reduce((s, a) => s + accountBalance(data, a.id), 0)
+    const open = data.txs.filter((t) => !t.paid && inScope(t, e.id))
+    const rec = open.filter((t) => t.kind === 'in').reduce((s, t) => s + t.amount, 0)
+    const pay = open.filter((t) => t.kind === 'out').reduce((s, t) => s + t.amount, 0)
+    const m = monthSummary(data, ym, e.id)
+    const y = Array.from({ length: 12 }, (_, i) => monthSummary(data, addMonth(ym, -i), e.id)).reduce((s, x) => ({ i: s.i + x.inPaid, o: s.o + x.outPaid }), { i: 0, o: 0 })
+    const obras = data.projects.filter((p) => p.entityId === e.id && p.status === 'andamento').length
+    const quotes = data.quotes.filter((q) => q.entityId === e.id && q.status === 'enviado').length
+    return { e, bal, rec, pay, res: m.result, inM: m.inPaid, year: y.i - y.o, yearIn: y.i, obras, quotes }
+  })
+  const maxIn = Math.max(1, ...rows.map((r) => r.yearIn))
+  return (
+    <section className="card flush">
+      <div className="card-head pad"><h2>Comparar empresas</h2><small className="muted">toque numa empresa para ver só ela</small></div>
+      <div className="compare">
+        <table className="table">
+          <thead><tr><th>Empresa</th><th className="r">Saldo</th><th className="r">A receber</th><th className="r">A pagar</th><th className="r">Resultado do mês</th><th className="r">Últimos 12 meses</th><th className="r">Obras</th><th className="r">Orçam. enviados</th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.e.id} className={`clickable ${r.e.favorite ? '' : 'minor'}`} onClick={() => setSettings({ scope: r.e.id })}>
+                <td><span className="row"><span className="dot" style={{ background: r.e.color }} /><b>{r.e.name}</b>{r.e.favorite && <span className="muted">★</span>}</span></td>
+                <td className={`r ${r.bal < 0 ? 'neg' : ''}`}>{money(r.bal)}</td>
+                <td className="r pos">{money(r.rec)}</td>
+                <td className="r neg">{money(r.pay)}</td>
+                <td className={`r ${r.res < 0 ? 'neg' : 'pos'}`}><b>{money(r.res)}</b></td>
+                <td className="r"><span className={r.year < 0 ? 'neg' : ''}>{money(r.year)}</span><div className="mini-bar"><div style={{ width: `${(r.yearIn / maxIn) * 100}%`, background: r.e.color }} /></div></td>
+                <td className="r">{r.obras || '—'}</td>
+                <td className="r">{r.quotes || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
