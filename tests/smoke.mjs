@@ -172,7 +172,20 @@ try {
     ok((await stored()).settings.scope === 'empresa' && await page.locator('.cnpj-pick').count() === 0, `${vp.name}: Empresa junta todos os CNPJs`)
     // início reorganizado: central de comando, atenção e resumo lateral
     await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
-    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.todo').count() === 1 && await page.locator('.rail-summary').count() === 1, `${vp.name}: início com atalhos, atenção e resumo`)
+    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.kpi').count() === 4, `${vp.name}: início com atalhos e resumo`)
+    // tabela de preços: calcula e vira orçamento
+    await page.evaluate(() => (location.hash = '#/precos')); await page.waitForTimeout(250)
+    await page.getByRole('button', { name: '+ Serviço' }).click(); await page.waitForTimeout(150)
+    await page.locator('.pick-svc label').first().click()
+    await page.locator('.modal').getByRole('button', { name: /Adicionar/ }).click(); await page.waitForTimeout(150)
+    const price = await page.locator('.pr-price strong').innerText()
+    ok(/R\$\s?[1-9]/.test(price), `${vp.name}: tabela de preços calcula (${price})`)
+    await shot('precos')
+    await page.getByRole('button', { name: 'Gerar orçamento para escola' }).click(); await page.waitForTimeout(150)
+    await page.locator('.pick-co button').first().click(); await page.waitForTimeout(400)
+    ok((await page.evaluate(() => location.hash)).startsWith('#/orcamentos/') && await page.locator('.q-total').count() > 0, `${vp.name}: cálculo vira orçamento`)
+    for (const h of ['servicos', 'insumos', 'bdi', 'm2']) { await page.evaluate((x) => (location.hash = '#/precos/' + x), h); await page.waitForTimeout(150) }
+    ok(await page.locator('.pr-price strong').count() === 1, `${vp.name}: telas da tabela de preços abrem`)
     // clientes e escolas já cadastradas
     await page.evaluate(() => (location.hash = '#/clientes')); await page.waitForTimeout(250)
     ok(await page.getByText('E.E. Prof. José Calvitti Filho').count() > 0, `${vp.name}: escolas já cadastradas em Clientes`)

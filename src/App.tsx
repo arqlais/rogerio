@@ -21,6 +21,7 @@ import { EntityProfile, OwnerProfile } from './pages/Profiles'
 import { Quotes } from './pages/Quotes'
 import { Agenda } from './pages/Agenda'
 import { Clients } from './pages/Clients'
+import { PricingPage } from './pages/Pricing'
 
 const NAV: [string, string, string][] = [
   ['', 'Início', 'home'],
@@ -28,6 +29,7 @@ const NAV: [string, string, string][] = [
   ['financeiro', 'Financeiro', 'wallet'],
   ['obras', 'Obras', 'building'],
   ['orcamentos', 'Orçamentos', 'file'],
+  ['precos', 'Preços', 'calc'],
   ['equipe', 'Equipe', 'users'],
   ['clientes', 'Clientes', 'school'],
   ['cadastros', 'Empresas', 'briefcase'],
@@ -35,7 +37,7 @@ const NAV: [string, string, string][] = [
 ]
 const GROUPS: [string, string[]][] = [
   ['hoje', ['', 'agenda']],
-  ['dinheiro', ['financeiro', 'orcamentos']],
+  ['dinheiro', ['financeiro', 'orcamentos', 'precos']],
   ['obras e pessoas', ['obras', 'equipe', 'clientes']],
   ['cadastros', ['cadastros', 'config']],
 ]
@@ -55,7 +57,7 @@ function Shell() {
   const { data, setSettings, sync, savedAt, userEmail, demo, setDemo } = useStore()
   const [theme, setTheme] = useTheme()
   const [tx, setTx] = useState<Partial<Tx> | null>(null)
-  const [menu, setMenu] = useState<false | 'side' | 'top'>(false)
+  const [menu, setMenu] = useState(false)
   const [more, setMore] = useState(false)
   const layout: Layout = 'classico'
   const setLayout = () => {}
@@ -90,6 +92,7 @@ function Shell() {
   else if (page === 'orcamentos') content = <Quotes id={route[1]} />
   else if (page === 'agenda') content = <Agenda />
   else if (page === 'clientes') content = <Clients />
+  else if (page === 'precos') content = <PricingPage tab={route[1]} />
   else content = <Dashboard onNewTx={setTx} />
 
   const newTx = (kind: Tx['kind']) => { setMenu(false); setTx({ kind }) }
@@ -105,10 +108,10 @@ function Shell() {
       </div>
     </div>
   )
-  const launcher = (where: 'side' | 'top') => (
+  const launcher = (
     <div className="new-wrap">
-      <button className="btn primary" onClick={() => setMenu((m) => (m === where ? false : where))} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>
-      {menu === where && (
+      <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>
+      {menu && (
         <>
           <div className="menu-backdrop" onClick={() => setMenu(false)} />
           <div className="menu" role="menu">
@@ -171,10 +174,6 @@ function Shell() {
             <small>{data.settings.profile?.profession || 'Engenharia'} · gestão</small>
           </div>
         </div>
-        <div className="side-actions">
-          {launcher('side')}
-          {scopeSeg}
-        </div>
         <nav>
           {GROUPS.map(([g, keys]) => (
             <div key={g} className="nav-group">
@@ -201,7 +200,7 @@ function Shell() {
       <div className="main">
         <header className="topbar">
           {scopeSeg}
-          {launcher('top')}
+          {launcher}
         </header>
         {bars}
         <main className="content">{content}</main>

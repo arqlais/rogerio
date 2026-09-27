@@ -6,6 +6,7 @@ import { setFilesUser } from './files'
 import schemaSql from '../supabase/schema.sql?raw'
 import type { Category, Client, Collection, Data, Entity, QuoteTheme, Settings } from './types'
 import { BRAND_ASSETS } from './brandAssets'
+import { defaultPricing } from './pricing'
 import { addDays, addMonths, setCompanyIds, today, uid } from './utils'
 
 const KEY = 'rogerio-gestao-v1'
@@ -92,7 +93,14 @@ export function emptyData(): Data {
     projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [], clients: SCHOOLS(),
     categories: DEFAULT_CATEGORIES(),
     settings: withProfile({ ...DEFAULT_SETTINGS }),
+    pricing: realPricing(),
   }
+}
+
+/** Tabela de preços de partida; nos dados reais o cálculo começa vazio. */
+function realPricing() {
+  const p = defaultPricing()
+  return { ...p, calc: { ...p.calc, lines: [] } }
 }
 
 /** Dados de exemplo para conhecer a plataforma antes de cadastrar os reais. */
@@ -177,6 +185,7 @@ export function sampleData(): Data {
       { id: uid(), description: 'Troca de lâmpadas', unit: 'un', qty: 30, price: 50 },
     ] })
   d.settings.owner = 'Rogério'
+  d.pricing = defaultPricing()
   return d
 }
 
@@ -220,6 +229,7 @@ function normalize(raw: Partial<Data>): Data {
     categories: raw.categories?.length ? raw.categories : base.categories,
     quotes: raw.quotes ?? [],
     clients: raw.clients ?? [],
+    pricing: raw.pricing ?? realPricing(),
     events: raw.events ?? [],
     settings: withProfile({ ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) }),
   } as Data

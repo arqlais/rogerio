@@ -312,6 +312,32 @@ export interface Data {
   clients: Client[]
   categories: Category[]
   settings: Settings
+  pricing?: Pricing
 }
 
 export type Collection = 'entities' | 'accounts' | 'projects' | 'units' | 'people' | 'txs' | 'attendance' | 'contracts' | 'categories' | 'quotes' | 'events' | 'clients'
+
+/** Tabela de preços (precificação de serviços). */
+export interface PriceInput {
+  id: string
+  name: string
+  unit: string
+  price: number // material: preço unitário · mão de obra: valor da diária
+  labor?: boolean
+}
+export interface PriceService {
+  id: string
+  code: string
+  name: string
+  unit: string
+  items: { inputId: string; coef: number }[]
+}
+export interface Pricing {
+  hours: number // horas por dia
+  charges: number // encargos sobre a mão de obra (fração)
+  bdi: { ac: number; sg: number; r: number; df: number; l: number; pis: number; cofins: number; iss: number; other: number }
+  inputs: PriceInput[]
+  services: PriceService[]
+  calc: { title: string; lines: { id: string; serviceId: string; qty: number }[]; extras: { id: string; name: string; value: number }[] }
+  m2: { kind: 'construcao' | 'leve' | 'media' | 'pesada'; area: number; cost: number; adjust: number }
+}

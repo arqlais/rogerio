@@ -10,6 +10,8 @@ import { Attachments } from '../components/Attachments'
 import { Icon } from '../components/Icon'
 import { EntityForm } from './Profiles'
 import { ClientForm } from './Clients'
+import { ServicePicker } from './Pricing'
+import { serviceCost } from '../pricing'
 import { Badge, EntityMark, Empty, Field, Modal, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
 import { downloadPdf } from '../pdf'
 import { ownedBy, addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
@@ -42,6 +44,41 @@ function nextNumber(d: Data) {
   return `${String(n).padStart(3, '0')}/${year}`
 }
 
+/** Orçamento novo em branco (ou já com os itens), no papel da empresa escolhida. */
+export function buildQuote(data: Data, model: 'pdde' | 'padrao', entId: string, items?: QuoteItem[], title = ''): Quote {
+  const companies = data.entities.filter((e) => e.kind === 'empresa')
+  const ent = companies.find((e) => e.id === entId) ?? companies[0]
+  const base: Quote = {
+    id: uid(), model, number: nextNumber(data), entityId: ent.id, client: '', title, date: today(), status: 'rascunho', bdi: 0, discount: 0,
+    contactName: ent.contactName ?? '', items: [],
+    validDays: model === 'pdde' ? 15 : 30,
+    payment: model === 'pdde' ? 'Após apresentação da nota fiscal' : 'Conforme medições mensais dos serviços executados.',
+  }
+  return model === 'pdde'
+    ? { ...base, subprogram: SUBPROGRAMS[0], exercise: today().slice(0, 4), items: items ?? [{ id: uid(), description: '', unit: '', qty: 0, price: 0 }] }
+    : { ...base, items: items ?? [{ id: uid(), group: '1. Serviços preliminares', description: '', unit: 'vb', qty: 1, price: 0 }] }
+}
+
+/** Escolha da empresa (papel timbrado) ao criar um orçamento. */
+export function CompanyPicker({ title, onPick, onClose }: { title: string; onPick: (id: string) => void; onClose: () => void }) {
+  const { data } = useStore()
+  const companies = [...data.entities.filter((e) => e.kind === 'empresa')].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite))
+  return (
+    <Modal title={title} onClose={onClose}>
+      <p className="muted small" style={{ marginTop: 0 }}>O papel timbrado, o CNPJ e o nome do PDF vêm da empresa escolhida. Dá para trocar depois.</p>
+      <div className="pick-co">
+        {companies.map((e) => (
+          <button key={e.id} className={e.id === data.settings.lastEntity ? 'on' : ''} onClick={() => onPick(e.id)}>
+            {e.logo ? <img src={e.logo} alt="" /> : <span className="ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}
+            <b>{e.name}</b>
+            <small>{e.doc || 'CNPJ não informado'}</small>
+          </button>
+        ))}
+      </div>
+    </Modal>
+  )
+}
+
 function QuoteList() {
   const { data, save, setSettings } = useStore()
   const scope = data.settings.scope
@@ -55,22 +92,12 @@ function QuoteList() {
   const decided = all.filter((x) => x.status === 'aprovado' || x.status === 'recusado')
 
   const [picking, setPicking] = useState<'pdde' | 'padrao' | null>(null)
-  const companies = [...data.entities.filter((e) => e.kind === 'empresa')].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite))
   const create = (model: 'pdde' | 'padrao') => setPicking(model)
   const createWith = (model: 'pdde' | 'padrao', entId: string) => {
     setPicking(null)
-    const ent = companies.find((e) => e.id === entId) ?? companies[0]
-    const base: Quote = {
-      id: uid(), model, number: nextNumber(data), entityId: ent.id, client: '', title: '', date: today(), status: 'rascunho', bdi: 0, discount: 0,
-      contactName: ent.contactName ?? '', items: [],
-      validDays: model === 'pdde' ? 15 : 30,
-      payment: model === 'pdde' ? 'Após apresentação da nota fiscal' : 'Conforme medições mensais dos serviços executados.',
-    }
-    const quote: Quote = model === 'pdde'
-      ? { ...base, subprogram: SUBPROGRAMS[0], exercise: today().slice(0, 4), items: [{ id: uid(), description: '', unit: '', qty: 0, price: 0 }] }
-      : { ...base, items: [{ id: uid(), group: '1. Serviços preliminares', description: '', unit: 'vb', qty: 1, price: 0 }] }
+    const quote = buildQuote(data, model, entId)
     save('quotes', quote)
-    setSettings({ lastEntity: ent.id })
+    setSettings({ lastEntity: quote.entityId })
     go(`/orcamentos/${quote.id}`)
   }
 
@@ -81,7 +108,7 @@ function QuoteList() {
         <div className="row wrap">
           <button className="btn primary" onClick={() => create('pdde')}>+ Orçamento para escola (PDDE)</button>
           <button className="btn" onClick={() => create('padrao')}>+ Orçamento comum</button>
-          <a className="btn" href="./planilhas/Precificacao-obras-e-servicos.xlsx" download>Planilha de preços (Excel)</a>
+          <a className="btn" href="#/precos">Tabela de preços</a>
         </div>
       </div>
       <div className="stats">
@@ -112,20 +139,7 @@ function QuoteList() {
           })}
         </div>
       )}
-      {picking && (
-        <Modal title={picking === 'pdde' ? 'Orçamento para escola: qual empresa?' : 'Novo orçamento: qual empresa?'} onClose={() => setPicking(null)}>
-          <p className="muted small" style={{ marginTop: 0 }}>O papel timbrado, o CNPJ e o nome do PDF vêm da empresa escolhida. Dá para trocar depois.</p>
-          <div className="pick-co">
-            {companies.map((e) => (
-              <button key={e.id} className={e.id === data.settings.lastEntity ? 'on' : ''} onClick={() => createWith(picking, e.id)}>
-                {e.logo ? <img src={e.logo} alt="" /> : <span className="ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}
-                <b>{e.name}</b>
-                <small>{e.doc || 'CNPJ não informado'}</small>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
+      {picking && <CompanyPicker title={picking === 'pdde' ? 'Orçamento para escola: qual empresa?' : 'Novo orçamento: qual empresa?'} onPick={(id) => createWith(picking, id)} onClose={() => setPicking(null)} />}
     </div>
   )
 }
@@ -134,6 +148,7 @@ function QuoteEditor({ id }: { id: string }) {
   const { data, save, remove, setSettings } = useStore()
   const [entForm, setEntForm] = useState<Partial<Entity> | null>(null)
   const [clientForm, setClientForm] = useState<Partial<Client> | null>(null)
+  const [fromTable, setFromTable] = useState(false)
   const q = data.quotes.find((x) => x.id === id)
   if (!q) return <div className="page"><Empty title="Orçamento não encontrado" action={<a className="btn" href="#/orcamentos">Voltar</a>} /></div>
   const pdde = q.model === 'pdde'
@@ -152,6 +167,12 @@ function QuoteEditor({ id }: { id: string }) {
   const set = (x: Partial<Quote>) => save('quotes', { ...q, ...x })
   const setItem = (iid: string, x: Partial<QuoteItem>) => set({ items: q.items.map((i) => (i.id === iid ? { ...i, ...x } : i)) })
   const addItem = (group?: string) => set({ items: [...q.items, { id: uid(), group: pdde ? undefined : group ?? q.items[q.items.length - 1]?.group, description: '', unit: pdde ? '' : 'm²', qty: pdde ? 0 : 1, price: 0 }] })
+  const addFromTable = (ids: string[]) => {
+    const p = data.pricing!
+    const added = ids.map((sid) => p.services.find((x) => x.id === sid)!).map((sv) => ({ id: uid(), group: pdde ? undefined : q.items[q.items.length - 1]?.group, description: sv.name, unit: sv.unit, qty: 1, price: Math.round(serviceCost(p, sv).price * 100) / 100 }))
+    set({ items: [...q.items.filter((i) => i.description || itemTotal(i)), ...added] })
+    setFromTable(false)
+  }
   const renameGroup = (old: string | undefined, name: string) => set({ items: q.items.map((i) => (i.group === old ? { ...i, group: name } : i)) })
   const move = (iid: string, dir: -1 | 1) => {
     const i = q.items.findIndex((x) => x.id === iid)
@@ -305,7 +326,7 @@ function QuoteEditor({ id }: { id: string }) {
                 </div>
               ))}
               <div className="row between">
-                <button className="btn small" onClick={() => addItem()}>+ Serviço</button>
+                <span className="row"><button className="btn small" onClick={() => addItem()}>+ Serviço</button><button className="btn small" onClick={() => setFromTable(true)}>+ Da tabela de preços</button></span>
                 <span className="q-total">Total <b>{money(t.total)}</b></span>
               </div>
               <small className="muted">{extenso(t.total)}</small>
@@ -360,7 +381,7 @@ function QuoteEditor({ id }: { id: string }) {
                 </div>
               </div>
             ))}
-            <button className="btn small" onClick={() => addItem(`${groups.length + 1}. Nova etapa`)}>+ Nova etapa</button>
+            <div className="row"><button className="btn small" onClick={() => addItem(`${groups.length + 1}. Nova etapa`)}>+ Nova etapa</button><button className="btn small" onClick={() => setFromTable(true)}>+ Da tabela de preços</button></div>
           </section>
         </>
       )}
@@ -404,6 +425,7 @@ function QuoteEditor({ id }: { id: string }) {
       </aside>
       </div>
       {entFormEl}
+      {fromTable && <ServicePicker onClose={() => setFromTable(false)} onPick={addFromTable} />}
       {clientFormEl}
     </div>
   )
