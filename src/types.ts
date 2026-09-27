@@ -23,6 +23,7 @@ export interface Entity {
   municipalReg?: string // inscrição municipal
   stateReg?: string // inscrição estadual
   logo?: string // imagem (data URL) usada nos orçamentos e recibos
+  mark?: string // símbolo quadrado do logo (botões e listas)
   footer?: string // imagem do rodapé do papel timbrado
   watermark?: string // marca-d'água do fundo
   tagline?: string // frase do rodapé (atividades)

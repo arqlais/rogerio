@@ -69,7 +69,7 @@ export function emptyData(): Data {
     { id: uid(), name: 'Pessoal', kind: 'pessoal', doc: DEFAULT_PROFILE.cpf, color: '#5b6573', favorite: true },
   ]
   return {
-    version: 2,
+    version: 3,
     entities,
     accounts: entities.map((e) => ({ id: uid(), entityId: e.id, name: e.kind === 'pessoal' ? 'Conta pessoal' : `Conta ${e.name}`, initial: 0, initialDate: start })),
     projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [],
@@ -177,6 +177,17 @@ function normalize(raw: Partial<Data>): Data {
         if (!def) return e.kind === 'pessoal' ? { ...e, favorite: true, doc: e.doc || DEFAULT_PROFILE.cpf } : e
         const merged: Entity = { ...def, ...Object.fromEntries(Object.entries(e).filter(([, v]) => v !== '' && v !== undefined)), id: e.id } as Entity
         return { ...merged, name: def.name, color: def.color, favorite: def.favorite }
+      }),
+    }
+  }
+  // versão 2 → 3: símbolo do logo para botões e listas
+  if ((raw.version ?? 1) < 3 && raw.entities) {
+    raw = {
+      ...raw,
+      version: 3,
+      entities: raw.entities.map((e) => {
+        const def = COMPANIES.find((c) => c.name.toLowerCase() === e.name.toLowerCase())
+        return def && !e.mark ? { ...e, mark: def.mark, logo: e.logo ?? def.logo } : e
       }),
     }
   }

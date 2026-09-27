@@ -5,6 +5,7 @@ import { ARTIFACT } from './env'
 import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
+import { EntityMark } from './components/ui'
 import type { Tx } from './types'
 import { Dashboard } from './pages/Dashboard'
 import { Finance } from './pages/Finance'
@@ -69,10 +70,10 @@ function Shell() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">▲</span>
+          <span className="brand-mark">{initials(data.settings.profile?.fullName || data.settings.owner || 'RV')}</span>
           <div>
-            <strong>{data.settings.owner || 'Gestão'}</strong>
-            <small>gestão de obras e finanças</small>
+            <strong>{shortName(data.settings.profile?.fullName) || data.settings.owner || 'Gestão'}</strong>
+            <small>{data.settings.profile?.profession || 'Engenharia'} · gestão</small>
           </div>
         </div>
         <nav>
@@ -95,8 +96,8 @@ function Shell() {
           <div className="scope" role="radiogroup" aria-label="Ver finanças de">
             <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
             {data.entities.filter((e) => e.favorite || e.id === scope).map((e) => (
-              <button key={e.id} className={scope === e.id ? 'on' : ''} onClick={() => setSettings({ scope: e.id })}>
-                <span className="dot" style={{ background: e.color }} />
+              <button key={e.id} className={scope === e.id ? 'on' : ''} onClick={() => setSettings({ scope: e.id })} style={{ ['--c' as string]: e.color }}>
+                {e.kind === 'pessoal' ? <span className="dot" style={{ background: e.color }} /> : <EntityMark e={e} size={20} />}
                 {e.name}
               </button>
             ))}
@@ -203,7 +204,7 @@ function Login() {
   return (
     <div className="center-screen login">
       <form className="card login-card" onSubmit={submit}>
-        <div className="brand big"><span className="brand-mark">▲</span><div><strong>Gestão de obras</strong><small>obras, equipe e finanças</small></div></div>
+        <div className="brand big"><span className="brand-mark">RV</span><div><strong>Rogério Vieira</strong><small>obras, equipe e finanças</small></div></div>
         <label className="field"><span className="field-label">E-mail</span><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
         <label className="field"><span className="field-label">Senha</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
         {error && <p className="error">{error}</p>}
@@ -236,3 +237,6 @@ function NewPassword({ onDone }: { onDone: () => void }) {
     </div>
   )
 }
+
+const initials = (n: string) => { const w = n.trim().split(/\s+/); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase() }
+const shortName = (n?: string) => { if (!n) return ''; const w = n.trim().split(/\s+/); return w.length > 1 ? `${w[0]} ${w[w.length - 1]}` : w[0] }

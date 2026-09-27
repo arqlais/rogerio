@@ -3,7 +3,8 @@ import { useStore } from '../store'
 import { go } from '../router'
 import type { Data, Entity, Quote, QuoteItem } from '../types'
 import { Attachments } from '../components/Attachments'
-import { Badge, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
+import { Badge, EntityMark, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
+import { downloadPdf } from '../pdf'
 import { addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
 
 const STATUS: Record<Quote['status'], [string, 'muted' | 'info' | 'good' | 'bad']> = {
@@ -87,11 +88,11 @@ function QuoteList() {
           {list.map((x) => {
             const e = data.entities.find((en) => en.id === x.entityId)
             return (
-              <a key={x.id} className="tx" href={`#/orcamentos/${x.id}`}>
-                <div className="tx-date"><span>{x.number.split('/')[0]}</span><small>{fmtDate(x.date).slice(0, 5)}</small></div>
+              <a key={x.id} className="tx with-mark" href={`#/orcamentos/${x.id}`}>
+                <EntityMark e={e} size={40} />
                 <div className="tx-main">
                   <strong>{quoteClient(x) || 'Sem cliente'}</strong>
-                  <span className="tx-meta"><span className="dot" style={{ background: e?.color }} /> {e?.name}{x.model === 'pdde' ? ` · ${x.subprogram ?? 'PDDE'}` : x.title ? ` · ${x.title}` : ''}{x.files?.length ? ' · assinado anexado' : ''}</span>
+                  <span className="tx-meta">nº {x.number} · {fmtDate(x.date)} · {e?.name}{x.model === 'pdde' ? ` · ${x.subprogram ?? 'PDDE'}` : x.title ? ` · ${x.title}` : ''}{x.files?.length ? ' · assinado anexado' : ''}</span>
                 </div>
                 <div className="tx-right"><span className="tx-amount">{money(quoteTotals(x).total)}</span><Badge tone={STATUS[x.status][1]}>{STATUS[x.status][0]}</Badge></div>
               </a>
@@ -157,12 +158,16 @@ function QuoteEditor({ id }: { id: string }) {
     <div className="page">
       <a className="back" href="#/orcamentos">‹ Orçamentos</a>
       <div className="page-head">
-        <div><h1>Orçamento nº {q.number}</h1><p className="muted">{client || 'Cliente'} · {money(t.total)}</p></div>
+        <div className="row" style={{ gap: 16 }}>
+          {ent?.logo && <img className="quote-logo" src={ent.logo} alt={ent.name} />}
+          <div><h1>Orçamento nº {q.number}</h1><p className="muted">{client || 'Cliente'} · {fmtDate(q.date)} · {money(t.total)}</p></div>
+        </div>
         <div className="row wrap">
           <select value={q.status} onChange={(e) => set({ status: e.target.value as Quote['status'] })} aria-label="Situação do orçamento">
             {Object.entries(STATUS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
           </select>
-          <button className="btn primary" onClick={() => printQuote(data, q)}>Ver para imprimir</button>
+          <button className="btn" onClick={() => printQuote(data, q)}>Ver / imprimir</button>
+          <button className="btn primary" onClick={() => downloadQuotePdf(data, q)}>Baixar PDF</button>
         </div>
       </div>
 
@@ -371,8 +376,31 @@ td,th{border:1px solid #333;padding:3px 6px;vertical-align:middle}
 </div></body></html>`
 }
 
+const pdfName = (d: Data, q: Quote) => `Orçamento ${q.number.replace('/', '-')} ${entityName(d, q.entityId)} - ${quoteClient(q) || 'cliente'}.pdf`
+
+/** Gera o PDF do orçamento (papel timbrado) e baixa o arquivo. */
+export async function downloadQuotePdf(d: Data, q: Quote) {
+  toast('Gerando o PDF…')
+  try {
+    await downloadPdf(quoteHtml(d, q), pdfName(d, q))
+    toast('PDF baixado')
+  } catch (e) {
+    if ((e as Error).message === 'preview') {
+      toast('Na prévia o navegador bloqueia downloads. No site publicado o PDF baixa direto.', 'err')
+      printQuote(d, q)
+    } else {
+      console.error(e)
+      toast('Não consegui gerar o PDF. Use "Imprimir" e escolha "Salvar como PDF".', 'err')
+    }
+  }
+}
+
 /** Abre o orçamento no papel timbrado da empresa, pronto para imprimir, carimbar e assinar. */
 export function printQuote(d: Data, q: Quote) {
+  openDocument(quoteHtml(d, q), `Orçamento nº ${q.number} · ${entityName(d, q.entityId)}`)
+}
+
+function quoteHtml(d: Data, q: Quote): string {
   const e = d.entities.find((x) => x.id === q.entityId)
   const t = quoteTotals(q)
   let body: string
@@ -404,5 +432,5 @@ ${t.bdi ? `<tr><td></td><td colspan="4">BDI (${q.bdi.toLocaleString('pt-BR')}%)<
 ${q.deadline || q.payment || q.notes ? `<h2><span>3.</span> Condições</h2><p>${q.deadline ? `<b>Prazo:</b> ${nl(q.deadline)}<br>` : ''}${q.payment ? `<b>Pagamento:</b> ${nl(q.payment)}<br>` : ''}${q.notes ? nl(q.notes) : ''}</p>` : ''}
 <div class="stamp">carimbo do CNPJ e assinatura</div>`
   }
-  openDocument(letterhead(e, body, `Orçamento ${q.number} – ${quoteClient(q)}`), `Orçamento nº ${q.number} · ${entityName(d, q.entityId)}`)
+  return letterhead(e, body, `Orçamento ${q.number} – ${quoteClient(q)}`)
 }

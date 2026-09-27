@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { money, moneyShort, parseMoney } from '../utils'
 import { ARTIFACT } from '../env'
+import type { Entity } from '../types'
 
 export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -189,4 +190,12 @@ export function openDocument(html: string, title: string) {
       <iframe className="doc-frame" srcDoc={clean} title={title} />
     </Modal>,
   )
+}
+
+/** Símbolo da empresa: recorte do logo, o logo inteiro ou as iniciais na cor dela. */
+export function EntityMark({ e, size = 22 }: { e?: Entity; size?: number }) {
+  if (!e) return null
+  const src = e.mark ?? e.logo
+  if (src) return <img className="emark" src={src} alt="" style={{ width: size, height: size }} />
+  return <span className="emark ph" style={{ width: size, height: size, background: e.color, fontSize: size * 0.42 }}>{e.kind === 'pessoal' ? '●' : e.name.slice(0, 2).toUpperCase()}</span>
 }

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useStore, sampleData } from '../store'
 import { go } from '../router'
 import type { Tx } from '../types'
-import { BarsChart, Progress, Stat, confirmDialog } from '../components/ui'
+import { BarsChart, EntityMark, Progress, Stat, confirmDialog } from '../components/ui'
 import { TxList } from '../components/TxList'
 import { KIND_LABEL, accountBalance, addDays, daysBetween, addMonth, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
@@ -54,7 +54,8 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
   return (
     <div className="page">
       <div className="page-head">
-        <div>
+        {ent?.logo && <img className="dash-logo" src={ent.logo} alt={ent.name} />}
+        <div style={{ flex: 1 }}>
           <h1>Olá, {data.settings.owner || 'bem-vindo'}</h1>
           <p className="muted">{ent ? ent.name : 'Todas as empresas e pessoal'} · {monthName(ym)}</p>
         </div>
@@ -192,7 +193,7 @@ function Compare() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.e.id} className={`clickable ${r.e.favorite ? '' : 'minor'}`} onClick={() => setSettings({ scope: r.e.id })}>
-                <td><span className="row"><span className="dot" style={{ background: r.e.color }} /><b>{r.e.name}</b>{r.e.favorite && <span className="muted">★</span>}</span></td>
+                <td><span className="row"><EntityMark e={r.e} size={26} /><b>{r.e.name}</b>{r.e.favorite && <span className="muted">★</span>}</span></td>
                 <td className={`r ${r.bal < 0 ? 'neg' : ''}`}>{money(r.bal)}</td>
                 <td className="r pos">{money(r.rec)}</td>
                 <td className="r neg">{money(r.pay)}</td>

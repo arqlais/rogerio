@@ -17,7 +17,7 @@ const ok = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!
 
 try {
   for (const vp of [{ width: 1400, height: 900, name: 'computador' }, { width: 390, height: 844, name: 'celular' }]) {
-    const page = await browser.newPage({ viewport: vp })
+    const page = await browser.newPage({ viewport: vp, acceptDownloads: true })
     const errors = []
     page.on('pageerror', (e) => errors.push(e.message))
     page.on('popup', async (p) => { if (shots) { await p.waitForLoadState(); await p.setViewportSize({ width: 900, height: 1250 }); await p.screenshot({ path: `${shots}/${vp.name}-popup-${Date.now()}.png`, fullPage: true }).catch(() => {}) } await p.close() })
@@ -138,7 +138,9 @@ try {
     await page.getByLabel('Preço unitário').nth(1).fill('50')
     await page.waitForTimeout(200)
     await shot('orcamento')
-    await page.getByRole('button', { name: 'Ver para imprimir' }).click(); await page.waitForTimeout(500)
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.getByRole('button', { name: 'Baixar PDF' }).click()])
+    ok(dl && dl.suggestedFilename().endsWith('.pdf'), `${vp.name}: orçamento baixa em PDF (${dl?.suggestedFilename()})`)
+    await page.getByRole('button', { name: 'Ver / imprimir' }).click(); await page.waitForTimeout(500)
     await shot('orcamento-pdf')
     if (await page.locator('.modal').count()) { await page.locator('.modal-foot .btn.primary').last().click(); await page.waitForTimeout(200) }
     await page.getByRole('button', { name: 'Aprovado → criar obra' }).click()
