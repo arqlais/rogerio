@@ -47,7 +47,7 @@ export function EntityProfile({ id }: { id: string }) {
         </div>
         <div className="row wrap">
           <button className={`btn ${e.favorite ? 'star-on' : ''}`} onClick={() => save('entities', { ...e, favorite: !e.favorite })} aria-pressed={!!e.favorite}>{e.favorite ? '★ Principal' : '☆ Marcar como principal'}</button>
-          <button className="btn" onClick={() => { setSettings({ scope: e.id }); go('/') }}>Ver finanças</button>
+          <button className="btn" onClick={() => { setSettings({ scope: e.kind === 'pessoal' ? e.id : 'empresa' }); go('/') }}>Ver finanças</button>
           <button className="btn primary" onClick={() => setEdit(true)}>Editar dados</button>
         </div>
       </section>

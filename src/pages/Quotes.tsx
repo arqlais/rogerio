@@ -9,7 +9,7 @@ import arimo700 from '@fontsource/arimo/files/arimo-latin-700-normal.woff2?inlin
 import { Attachments } from '../components/Attachments'
 import { Icon } from '../components/Icon'
 import { EntityForm } from './Profiles'
-import { Badge, EntityMark, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
+import { Badge, EntityMark, Empty, Field, Modal, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
 import { downloadPdf } from '../pdf'
 import { ownedBy, addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
 
@@ -42,7 +42,7 @@ function nextNumber(d: Data) {
 }
 
 function QuoteList() {
-  const { data, save } = useStore()
+  const { data, save, setSettings } = useStore()
   const scope = data.settings.scope
   const [status, setStatus] = useState<'' | Quote['status']>('')
   const [q, setQ] = useState('')
@@ -53,9 +53,12 @@ function QuoteList() {
   const sum = (s: Quote['status']) => all.filter((x) => x.status === s).reduce((t, x) => t + quoteTotals(x).total, 0)
   const decided = all.filter((x) => x.status === 'aprovado' || x.status === 'recusado')
 
-  const create = (model: 'pdde' | 'padrao') => {
-    const companies = data.entities.filter((e) => e.kind === 'empresa')
-    const ent = companies.find((e) => e.id === scope) ?? companies.find((e) => e.id === data.settings.lastEntity) ?? companies.find((e) => e.favorite) ?? companies[0]
+  const [picking, setPicking] = useState<'pdde' | 'padrao' | null>(null)
+  const companies = [...data.entities.filter((e) => e.kind === 'empresa')].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite))
+  const create = (model: 'pdde' | 'padrao') => setPicking(model)
+  const createWith = (model: 'pdde' | 'padrao', entId: string) => {
+    setPicking(null)
+    const ent = companies.find((e) => e.id === entId) ?? companies[0]
     const base: Quote = {
       id: uid(), model, number: nextNumber(data), entityId: ent.id, client: '', title: '', date: today(), status: 'rascunho', bdi: 0, discount: 0,
       contactName: ent.contactName ?? '', items: [],
@@ -66,6 +69,7 @@ function QuoteList() {
       ? { ...base, subprogram: SUBPROGRAMS[0], exercise: today().slice(0, 4), items: [{ id: uid(), description: '', unit: '', qty: 0, price: 0 }] }
       : { ...base, items: [{ id: uid(), group: '1. Serviços preliminares', description: '', unit: 'vb', qty: 1, price: 0 }] }
     save('quotes', quote)
+    setSettings({ lastEntity: ent.id })
     go(`/orcamentos/${quote.id}`)
   }
 
@@ -105,6 +109,20 @@ function QuoteList() {
             )
           })}
         </div>
+      )}
+      {picking && (
+        <Modal title={picking === 'pdde' ? 'Orçamento para escola: qual empresa?' : 'Novo orçamento: qual empresa?'} onClose={() => setPicking(null)}>
+          <p className="muted small" style={{ marginTop: 0 }}>O papel timbrado, o CNPJ e o nome do PDF vêm da empresa escolhida. Dá para trocar depois.</p>
+          <div className="pick-co">
+            {companies.map((e) => (
+              <button key={e.id} className={e.id === data.settings.lastEntity ? 'on' : ''} onClick={() => createWith(picking, e.id)}>
+                {e.logo ? <img src={e.logo} alt="" /> : <span className="ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}
+                <b>{e.name}</b>
+                <small>{e.doc || 'CNPJ não informado'}</small>
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
     </div>
   )

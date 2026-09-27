@@ -965,3 +965,31 @@ h1, .dash-title { font-family: var(--display); font-weight: 700; letter-spacing:
 .chart .axis { font-size: 11.5px; }
 .brand-mark { font-family: 'Montserrat Variable', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0; }
 .brand small { line-height: 1.3; }
+
+/* menu lateral azul-marinho (como antes) */
+.sidebar { background-color: var(--side); background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px); background-size: 22px 22px; color: #e5e7eb; border-right: 0; }
+:root[data-theme='dark'] .sidebar { background-color: #0a111c; }
+.brand strong { color: #fff; }
+.brand small { color: #9fb0cc; }
+.brand-mark { background: var(--accent); color: #172a4d; }
+.sidebar nav a { color: #c7d0e0; }
+.sidebar nav a:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.sidebar nav a.on, :root[data-theme='dark'] .sidebar nav a.on { background: rgba(240, 138, 44, 0.16); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
+.sidebar nav a.on .nav-i, :root[data-theme='dark'] .sidebar nav a.on .nav-i { color: var(--accent); }
+.side-foot { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.me { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); color: #fff; }
+.me:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); }
+.me .avatar { background: rgba(240, 138, 44, 0.18); color: var(--accent); }
+.me small { color: #9fb0cc; }
+.sync { color: #9fb0cc; }
+.sidebar .side-tools .icon-btn { color: #aab6cb; }
+.sidebar .side-tools .icon-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+/* escolher a empresa do orçamento */
+.pick-co { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.pick-co button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px; border: 1.5px solid var(--line); border-radius: 16px; background: var(--card); text-align: center; transition: border-color 0.15s, transform 0.15s; }
+.pick-co button:hover { border-color: var(--accent); transform: translateY(-1px); }
+.pick-co button.on { border-color: var(--accent); background: var(--accent-soft); }
+.pick-co img { height: 44px; max-width: 150px; object-fit: contain; background: #fff; border-radius: 8px; padding: 4px; }
+.pick-co b { font-size: 15px; }
+.pick-co small { color: var(--muted); font-size: 12px; }
+.pick-co .ph { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; }

@@ -201,7 +201,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
 
 /** Resumo lado a lado das empresas (e do pessoal) para comparar. */
 function Compare({ scope }: { scope: string }) {
-  const { data, setSettings } = useStore()
+  const { data } = useStore()
   const ym = month(today())
   const rows = data.entities.filter((e) => scope === 'all' || e.kind === 'empresa').sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || Number(a.kind === 'pessoal') - Number(b.kind === 'pessoal')).map((e) => {
     const bal = data.accounts.filter((a) => a.entityId === e.id && !a.archived).reduce((s, a) => s + accountBalance(data, a.id), 0)
@@ -220,7 +220,7 @@ function Compare({ scope }: { scope: string }) {
     <div className="cnpj-list">
       <div className="cnpj-row head"><span>CNPJ</span><span>saldo</span><span>resultado do mês</span><span>a receber</span><span>a pagar</span></div>
       {rows.filter((r) => r.e.favorite || r.bal || r.rec || r.pay || r.res).map((r) => (
-        <button key={r.e.id} className="cnpj-row" onClick={() => setSettings({ scope: r.e.id })}>
+        <button key={r.e.id} className="cnpj-row" onClick={() => go(`/empresa/${r.e.id}`)}>
           <span className="cnpj-name"><EntityMark e={r.e} size={24} /><b>{r.e.name}</b></span>
           <span className={r.bal < 0 ? 'neg' : ''}>{money(r.bal)}<i className="bar-mini"><i style={{ width: `${(Math.abs(r.bal) / max) * 100}%`, background: r.e.color }} /></i></span>
           <span className={r.res < 0 ? 'neg' : 'pos'}>{money(r.res)}</span>

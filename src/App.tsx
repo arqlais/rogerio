@@ -6,7 +6,6 @@ import { confirmDialog, toast } from './components/ui'
 import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
-import { EntityMark } from './components/ui'
 import { Icon } from './components/Icon'
 import type { Tx } from './types'
 import { Dashboard } from './pages/Dashboard'
@@ -49,12 +48,12 @@ function Shell() {
   const [menu, setMenu] = useState(false)
   const [more, setMore] = useState(false)
   const scope = data.settings.scope
+  // as empresas ficam sempre juntas: um CNPJ sozinho no topo volta para "Empresa"
+  const companyScope = data.entities.some((e) => e.id === scope && e.kind === 'empresa')
   const validScope = scope === 'all' || scope === 'empresa' || data.entities.some((e) => e.id === scope)
-  useEffect(() => { if (!validScope) setSettings({ scope: 'empresa' }) }, [validScope, setSettings])
+  useEffect(() => { if (!validScope || companyScope) setSettings({ scope: 'empresa' }) }, [validScope, companyScope, setSettings])
   const pessoal = data.entities.find((e) => e.kind === 'pessoal')
-  const companies = [...data.entities.filter((e) => e.kind === 'empresa')].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite))
-  const scopeCompany = companies.find((e) => e.id === scope)
-  const inEmpresa = scope === 'empresa' || !!scopeCompany
+  const inEmpresa = scope === 'empresa' || companyScope
   const toggleDemo = () => { setDemo(!demo); toast(demo ? 'Voltou para os seus dados' : 'Mostrando o exemplo preenchido — seus dados continuam guardados') }
   const tools = (
     <div className="side-tools">
@@ -118,15 +117,6 @@ function Shell() {
               {pessoal && <button className={scope === pessoal.id ? 'on' : ''} onClick={() => setSettings({ scope: pessoal.id })}>Pessoal</button>}
               <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
             </div>
-            {inEmpresa && companies.length > 1 && (
-              <label className={`cnpj-pick ${scopeCompany ? 'on' : ''}`}>
-                {scopeCompany ? <EntityMark e={scopeCompany} size={18} /> : 'CNPJ'}
-                <select value={scopeCompany?.id ?? ''} onChange={(e) => setSettings({ scope: e.target.value || 'empresa' })} aria-label="Filtrar por CNPJ">
-                  <option value="">todos</option>
-                  {companies.map((e) => <option key={e.id} value={e.id}>{e.name}{e.doc ? ` · ${e.doc}` : ''}</option>)}
-                </select>
-              </label>
-            )}
           </div>
           <div className="new-wrap">
             <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>

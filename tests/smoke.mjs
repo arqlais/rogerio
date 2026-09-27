@@ -32,8 +32,7 @@ try {
     await page.waitForTimeout(500)
     ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: tela de boas-vindas`)
     const names = await page.locator('.scope-seg button').allInnerTexts()
-    const cnpjs = await page.locator('.cnpj-pick option').allInnerTexts()
-    ok(['Empresa', 'Pessoal', 'Tudo'].every((n) => names.includes(n)) && ['Quira', 'RDL', 'Engforte', 'AV'].every((n) => cnpjs.some((x) => x.startsWith(n))), `${vp.name}: topo Empresa / Pessoal / Tudo com filtro de CNPJ`)
+    ok(['Empresa', 'Pessoal', 'Tudo'].every((n) => names.includes(n)), `${vp.name}: topo Empresa / Pessoal / Tudo`)
 
     // exemplo
     await page.getByText('Ver a plataforma com dados de exemplo').click()
@@ -128,7 +127,8 @@ try {
 
     // orçamento de escola (PDDE) → obra
     await go('#/orcamentos')
-    await page.getByRole('button', { name: '+ Orçamento para escola (PDDE)' }).click(); await page.waitForTimeout(300)
+    await page.getByRole('button', { name: '+ Orçamento para escola (PDDE)' }).click(); await page.waitForTimeout(200)
+    await page.locator('.pick-co button', { hasText: 'Quira' }).click(); await page.waitForTimeout(300)
     await page.getByLabel('Nome da APM').fill('E.E. Teste')
     await page.getByLabel('CNPJ da APM').fill('11.111.111/0001-11')
     await page.getByLabel('Descrição do item').first().fill('Manutenção elétrica')
@@ -164,11 +164,9 @@ try {
     await shot('pessoal')
     ok((await stored()).settings.scope === pess.id, `${vp.name}: filtro Pessoal`)
 
-    // filtro por CNPJ e modo escuro
+    // empresas sempre juntas (sem filtro de CNPJ no topo) e modo escuro
     await page.locator('.scope-seg button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
-    const rdlId = (await stored()).entities.find((e) => e.name === 'RDL').id
-    await page.locator('.cnpj-pick select').selectOption(rdlId); await page.waitForTimeout(250)
-    ok((await stored()).settings.scope === rdlId && await page.locator('.ent-chip', { hasText: 'RDL' }).count() > 0, `${vp.name}: filtro por CNPJ mostra a RDL no topo`)
+    ok((await stored()).settings.scope === 'empresa' && await page.locator('.cnpj-pick').count() === 0, `${vp.name}: Empresa junta todos os CNPJs`)
     if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
     await page.locator(vp.width < 800 ? '.sheet [aria-label="Modo escuro"]' : '.sidebar [aria-label="Modo escuro"]').click(); await page.waitForTimeout(250)
     ok(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', `${vp.name}: modo escuro`)
