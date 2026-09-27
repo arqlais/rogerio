@@ -6,6 +6,7 @@ import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
 import { EntityMark } from './components/ui'
+import { Icon } from './components/Icon'
 import type { Tx } from './types'
 import { Dashboard } from './pages/Dashboard'
 import { Finance } from './pages/Finance'
@@ -19,14 +20,14 @@ import { Quotes } from './pages/Quotes'
 import { Agenda } from './pages/Agenda'
 
 const NAV: [string, string, string][] = [
-  ['', 'Início', '⌂'],
-  ['agenda', 'Agenda', '▦'],
-  ['financeiro', 'Financeiro', '$'],
-  ['obras', 'Obras', '▲'],
-  ['orcamentos', 'Orçamentos', '✎'],
-  ['equipe', 'Equipe', '☺'],
-  ['cadastros', 'Empresas', '☰'],
-  ['config', 'Ajustes', '⚙'],
+  ['', 'Início', 'home'],
+  ['agenda', 'Agenda', 'calendar'],
+  ['financeiro', 'Financeiro', 'wallet'],
+  ['obras', 'Obras', 'building'],
+  ['orcamentos', 'Orçamentos', 'file'],
+  ['equipe', 'Equipe', 'users'],
+  ['cadastros', 'Empresas', 'briefcase'],
+  ['config', 'Ajustes', 'settings'],
 ]
 // no celular: 4 atalhos + "Mais"
 const MOBILE = ['', 'financeiro', 'obras', 'equipe']
@@ -79,7 +80,7 @@ function Shell() {
         <nav>
           {NAV.map(([k, l, i]) => (
             <a key={k} href={`#/${k}`} className={page === k || (k === 'equipe' && page === 'pessoa') || (k === 'cadastros' && page === 'empresa') || (k === 'config' && page === 'perfil') ? 'on' : ''}>
-              <span className="nav-i">{i}</span>
+              <span className="nav-i"><Icon name={i} /></span>
               {l}
             </a>
           ))}
@@ -109,17 +110,17 @@ function Shell() {
             )}
           </div>
           <div className="new-wrap">
-            <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu">+ Lançar</button>
+            <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>
             {menu && (
               <>
                 <div className="menu-backdrop" onClick={() => setMenu(false)} />
                 <div className="menu" role="menu">
-                  <button onClick={() => newTx('out')}><b className="neg">−</b> Saída / conta a pagar</button>
-                  <button onClick={() => newTx('in')}><b className="pos">+</b> Entrada / a receber</button>
-                  <button onClick={() => newTx('transfer')}><b>⇄</b> Transferência / pró-labore</button>
-                  <button onClick={() => { setMenu(false); go('/equipe/diarias') }}><b>☺</b> Apontar diárias</button>
-                  <button onClick={() => { setMenu(false); go('/agenda') }}><b>▦</b> Compromisso na agenda</button>
-                  <button onClick={() => { setMenu(false); go('/orcamentos') }}><b>✎</b> Orçamento</button>
+                  <button onClick={() => newTx('out')}><span className="mi out"><Icon name="arrowDown" size={18} /></span>Saída / conta a pagar</button>
+                  <button onClick={() => newTx('in')}><span className="mi in"><Icon name="arrowUp" size={18} /></span>Entrada / a receber</button>
+                  <button onClick={() => newTx('transfer')}><span className="mi"><Icon name="swap" size={18} /></span>Transferência / pró-labore</button>
+                  <button onClick={() => { setMenu(false); go('/equipe/diarias') }}><span className="mi"><Icon name="hardhat" size={18} /></span>Apontar diárias</button>
+                  <button onClick={() => { setMenu(false); go('/agenda') }}><span className="mi"><Icon name="calendar" size={18} /></span>Compromisso na agenda</button>
+                  <button onClick={() => { setMenu(false); go('/orcamentos') }}><span className="mi"><Icon name="file" size={18} /></span>Orçamento</button>
                 </div>
               </>
             )}
@@ -132,12 +133,12 @@ function Shell() {
       <nav className="bottomnav">
         {NAV.filter(([k]) => MOBILE.includes(k)).map(([k, l, i]) => (
           <a key={k} href={`#/${k}`} className={page === k || (k === 'equipe' && page === 'pessoa') ? 'on' : ''} onClick={() => setMore(false)}>
-            <span className="nav-i">{i}</span>
+            <span className="nav-i"><Icon name={i} /></span>
             <small>{l}</small>
           </a>
         ))}
         <button className={!MOBILE.includes(page) && page !== 'pessoa' ? 'on' : ''} onClick={() => setMore((m) => !m)}>
-          <span className="nav-i">⋯</span>
+          <span className="nav-i"><Icon name="more" /></span>
           <small>Mais</small>
         </button>
       </nav>
@@ -146,7 +147,7 @@ function Shell() {
           <div className="menu-backdrop" onClick={() => setMore(false)} />
           <div className="sheet">
             {NAV.filter(([k]) => !MOBILE.includes(k)).map(([k, l, i]) => (
-              <a key={k} href={`#/${k}`} onClick={() => setMore(false)}><span className="nav-i">{i}</span>{l}</a>
+              <a key={k} href={`#/${k}`} onClick={() => setMore(false)}><span className="nav-i"><Icon name={i} /></span>{l}</a>
             ))}
           </div>
         </>
