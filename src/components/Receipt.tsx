@@ -1,4 +1,5 @@
 import type { Data, Tx } from '../types'
+import { openDocument } from './ui'
 import { entityName, extenso, fmtDate, money, personName, today } from '../utils'
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
@@ -28,8 +29,5 @@ ${detail ? `<pre>${esc(detail)}</pre>` : ''}
 <div class="sign"><div>${esc(person?.name ?? '')}${person?.doc ? `<br><small>CPF/CNPJ ${esc(person.doc)}</small>` : ''}</div></div>
 <button onclick="print()">Imprimir / salvar PDF</button>
 </body></html>`
-  const w = window.open('', '_blank')
-  if (!w) return
-  w.document.write(html)
-  w.document.close()
+  openDocument(html, `Recibo – ${personName(d, t.personId)}`)
 }

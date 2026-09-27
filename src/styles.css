@@ -453,3 +453,6 @@ input, select, textarea { font: inherit; color: var(--ink); }
   .toasts { bottom: calc(86px + env(safe-area-inset-bottom)); }
   .kv { flex-wrap: wrap; }
 }
+.doc-frame { width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.preview-bar { background: var(--accent-soft); color: var(--accent-ink); font-size: 13.5px; padding: 8px 28px; border-bottom: 1px solid var(--line); }
+@media (max-width: 760px) { .preview-bar { padding: 8px 12px; } }

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { CLOUD, fetchRemote, pushRemote } from './cloud'
+import { ARTIFACT } from './env'
 import type { Category, Collection, Data, Settings } from './types'
 import { addDays, addMonths, today, uid } from './utils'
 
@@ -165,7 +166,7 @@ function loadLocal(): Data | null {
 }
 
 export function StoreProvider({ children, userId, userEmail }: { children: ReactNode; userId?: string; userEmail?: string }) {
-  const [data, setData] = useState<Data>(() => loadLocal() ?? emptyData())
+  const [data, setData] = useState<Data>(() => loadLocal() ?? (ARTIFACT ? sampleData() : emptyData()))
   const [ready, setReady] = useState(!userId)
   const [sync, setSync] = useState<Sync>(userId ? 'salvando' : 'local')
   const [loadError, setLoadError] = useState('')

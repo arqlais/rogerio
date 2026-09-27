@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Data } from './types'
+import { ARTIFACT } from './env'
 
 /* Nuvem (Supabase): login com e-mail e senha + todos os dados numa linha por usuário,
    protegida por RLS (só o dono lê e escreve). Veja o README e supabase/schema.sql.
@@ -9,7 +10,7 @@ const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https:
 const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'sb_publishable_uqo6nAVMS7iZsidCPNQRhg_YA9RNaYA'
 
 // VITE_LOCAL=1 (testes) força o modo só no navegador
-export const CLOUD = import.meta.env.VITE_LOCAL !== '1' && !!url && !!key
+export const CLOUD = !ARTIFACT && import.meta.env.VITE_LOCAL !== '1' && !!url && !!key
 export const supabase = CLOUD ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } }) : null
 
 const TABLE = 'engenharia'

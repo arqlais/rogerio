@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { money, moneyShort, parseMoney } from '../utils'
+import { ARTIFACT } from '../env'
 
 export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -168,4 +169,24 @@ export function confirmDialog(message: string, ok = 'Confirmar', danger = true):
       </Modal>,
     )
   })
+}
+
+window.addEventListener('app-notice', (e) => toast(String((e as CustomEvent).detail)))
+
+/** Abre recibo/orçamento numa janela para imprimir. Na prévia (ou com pop-up bloqueado), mostra dentro da página. */
+export function openDocument(html: string, title: string) {
+  if (!ARTIFACT) {
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close(); return }
+  }
+  const clean = html.replace(/<div class="bar">[\s\S]*?<\/div>/, '').replace(/<button onclick="print\(\)">[\s\S]*?<\/button>/, '')
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const root = createRoot(host)
+  const done = () => { root.unmount(); host.remove() }
+  root.render(
+    <Modal wide title={title} onClose={done} footer={<><span className="muted small" style={{ flex: 1 }}>{ARTIFACT ? 'Prévia: no site publicado este documento abre pronto para imprimir ou salvar em PDF.' : 'Libere as janelas pop-up para imprimir.'}</span><button className="btn primary" onClick={done}>Fechar</button></>}>
+      <iframe className="doc-frame" srcDoc={clean} title={title} />
+    </Modal>,
+  )
 }

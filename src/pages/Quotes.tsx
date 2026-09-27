@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Data, Quote, QuoteItem } from '../types'
-import { Badge, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, toast } from '../components/ui'
+import { Badge, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
 import { addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
 
 const STATUS: Record<Quote['status'], [string, 'muted' | 'info' | 'good' | 'bad']> = {
@@ -262,8 +262,5 @@ tr.grp td{background:#eef0f3;font-weight:700}
 </div>
 <div class="sign"><div>${esc(e?.responsible || e?.name)}<br><small>${esc(e?.name)}</small></div><div>De acordo – ${esc(q.client)}</div></div>
 </body></html>`
-  const w = window.open('', '_blank')
-  if (!w) return toast('Libere as janelas pop-up para gerar o PDF', 'err')
-  w.document.write(html)
-  w.document.close()
+  openDocument(html, `Orçamento nº ${q.number}`)
 }

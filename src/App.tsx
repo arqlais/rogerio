@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { CLOUD, supabase } from './cloud'
+import { ARTIFACT } from './env'
 import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
@@ -110,6 +111,7 @@ function Shell() {
             )}
           </div>
         </header>
+        {ARTIFACT && <div className="preview-bar">Prévia com dados de exemplo — mexa à vontade: o que você muda fica só neste navegador. Para começar do zero, vá em Ajustes.</div>}
         <main className="content">{content}</main>
       </div>
 

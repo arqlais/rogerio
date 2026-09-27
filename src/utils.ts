@@ -1,3 +1,4 @@
+import { ARTIFACT } from './env'
 import type { Data, PersonRole, ProjectKind, ProjectStatus, Tx, UnitStatus } from './types'
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
@@ -181,6 +182,7 @@ export const projectName = (d: Data, id?: string) => d.projects.find((p) => p.id
 export const accountName = (d: Data, id?: string) => d.accounts.find((p) => p.id === id)?.name ?? ''
 
 export function downloadFile(name: string, content: string, type = 'text/plain') {
+  if (ARTIFACT) return notice('Na prévia não dá para baixar arquivos. No site publicado, este botão baixa o arquivo.')
   const blob = new Blob([content], { type })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
@@ -222,4 +224,9 @@ export function extenso(v: number): string {
   if (inteiro) s += inteiro === 1 ? ' real' : mi && !mil && !r ? ' de reais' : ' reais'
   if (cent) s += (inteiro ? ' e ' : '') + tri(cent) + (cent === 1 ? ' centavo' : ' centavos')
   return s || 'zero reais'
+}
+
+/** Aviso rápido sem depender dos componentes (usado pela prévia). */
+function notice(msg: string) {
+  window.dispatchEvent(new CustomEvent('app-notice', { detail: msg }))
 }

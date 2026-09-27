@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
+    "build:artifact": "VITE_ARTIFACT=1 vite build --outDir dist-artifact --emptyOutDir && node scripts/artifact.mjs",
     "test:smoke": "VITE_LOCAL=1 vite build --outDir dist-test --emptyOutDir && node tests/smoke.mjs dist-test"
   },
   "dependencies": {
