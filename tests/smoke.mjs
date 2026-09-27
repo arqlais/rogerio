@@ -75,7 +75,7 @@ try {
 
     // marcar como pago
     await go('#/financeiro')
-    const payBtn = page.locator('.tx-actions .btn').first()
+    const payBtn = page.locator('.tx-actions button').first()
     await payBtn.click(); await page.waitForTimeout(200)
     ok((await stored()).txs.filter((t) => t.paid).length > d1.txs.filter((t) => t.paid).length, `${vp.name}: botão Paguei/Recebi`)
 

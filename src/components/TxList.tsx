@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { Tx } from '../types'
-import { signed, accountName, entityName, fmtDateShort, isLate, money, personName, projectName, today } from '../utils'
+import { signed, entityName, fmtDateShort, isLate, money, personName, projectName, today } from '../utils'
 import { TxForm } from './TxForm'
 import { Badge, Empty, toast } from './ui'
+import { Icon } from './Icon'
 import { printReceipt } from './Receipt'
 
 /** Lista de lançamentos com "pagar/receber" em um toque. */
@@ -34,12 +35,8 @@ export function TxList({ txs, hide = [], empty, scope = 'all' }: { txs: Tx[]; hi
                 <strong>{t.description}</strong>
                 <span className="tx-meta">
                   {t.kind === 'transfer' ? `${entityName(data, t.entityId)} → ${entityName(data, t.toEntityId)}` : t.category}
-                  {!hide.includes('project') && t.projectId && <> · {projectName(data, t.projectId)}</>}
-                  {!hide.includes('person') && t.personId && <> · {personName(data, t.personId)}</>}
-                  {!hide.includes('entity') && t.kind !== 'transfer' && data.entities.length > 1 && <> · {entityName(data, t.entityId)}</>}
-                  {t.accountId && <> · {accountName(data, t.accountId)}</>}
-                  {t.docNo && <> · {t.docNo}</>}
-                  {!!t.files?.length && <> · <span className="nf-tag">anexo</span></>}
+                  {!hide.includes('project') && t.projectId ? <> · {projectName(data, t.projectId)}</> : !hide.includes('person') && t.personId ? <> · {personName(data, t.personId)}</> : null}
+                  {!!t.files?.length && <span className="nf-tag" title="tem anexo">NF</span>}
                 </span>
               </div>
               <div className="tx-right">
@@ -51,7 +48,7 @@ export function TxList({ txs, hide = [], empty, scope = 'all' }: { txs: Tx[]; hi
                       {t.kind === 'out' && t.personId && <button className="link small" onClick={() => printReceipt(data, t)}>recibo</button>}
                     </>
                   ) : (
-                    <button className={`btn small ${t.kind === 'in' ? 'good' : 'primary'}`} onClick={() => settle(t)}>{t.kind === 'in' ? 'Recebi' : 'Paguei'}</button>
+                    <button className={`settle ${t.kind === 'in' ? 'in' : 'out'}`} onClick={() => settle(t)}><Icon name="check" size={15} />{t.kind === 'in' ? 'recebi' : 'paguei'}</button>
                   )}
                 </span>
               </div>

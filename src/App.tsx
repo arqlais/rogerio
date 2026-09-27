@@ -7,6 +7,7 @@ import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
 import { Icon } from './components/Icon'
+import { BRAND_ASSETS } from './brandAssets'
 import type { Tx } from './types'
 import { Dashboard } from './pages/Dashboard'
 import { Finance } from './pages/Finance'
@@ -197,6 +198,7 @@ export const signOut = () => supabase?.auth.signOut()
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [show, setShow] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [info, setInfo] = useState('')
@@ -206,25 +208,93 @@ function Login() {
     setBusy(true)
     const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password })
     setBusy(false)
-    if (error) setError(error.message.includes('Invalid') ? 'E-mail ou senha incorretos.' : error.message)
+    if (error) setError(error.message.includes('Invalid') ? 'E-mail ou senha incorretos. Confira e tente de novo.' : error.message)
   }
   const forgot = async () => {
-    if (!email.trim()) return setError('Digite seu e-mail primeiro.')
+    if (!email.trim()) return setError('Digite seu e-mail acima e toque de novo em "esqueci minha senha".')
     await supabase!.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + location.pathname })
-    setInfo('Enviamos um link para redefinir a senha no seu e-mail.')
+    setInfo('Pronto! Enviamos um link para criar uma senha nova no seu e-mail.')
   }
   return (
-    <div className="center-screen login">
-      <form className="card login-card" onSubmit={submit}>
-        <div className="brand big"><span className="brand-mark">RV</span><div><strong>Rogério Vieira</strong><small>obras, equipe e finanças</small></div></div>
-        <label className="field"><span className="field-label">E-mail</span><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-        <label className="field"><span className="field-label">Senha</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-        {error && <p className="error">{error}</p>}
-        {info && <p className="muted">{info}</p>}
-        <button className="btn primary block" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
-        <button type="button" className="link" onClick={forgot}>Esqueci minha senha</button>
+    <AuthLayout>
+      <form className="auth-form" onSubmit={submit}>
+        <span className="auth-eyebrow">acesso restrito</span>
+        <h1 className="auth-title"><span>bem-vindo</span> de volta</h1>
+        <p className="auth-lead">Entre para ver obras, equipe, orçamentos e o caixa de todas as empresas.</p>
+        <label className="auth-field">
+          <span>E-mail</span>
+          <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required autoFocus />
+        </label>
+        <label className="auth-field">
+          <span>Senha</span>
+          <div className="auth-pass">
+            <input type={show ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+            <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Esconder senha' : 'Mostrar senha'}><Icon name={show ? 'eyeOff' : 'eye'} size={18} /></button>
+          </div>
+        </label>
+        {error && <p className="auth-msg err">{error}</p>}
+        {info && <p className="auth-msg ok">{info}</p>}
+        <button className="auth-submit" disabled={busy}>{busy ? 'Entrando…' : <>Entrar <Icon name="chevron" size={18} /></>}</button>
+        <button type="button" className="auth-link" onClick={forgot}>esqueci minha senha</button>
       </form>
+    </AuthLayout>
+  )
+}
+
+/** Tela de entrada: prancha de engenharia com o prédio sendo desenhado + formulário. */
+function AuthLayout({ children }: { children: ReactNode }) {
+  const logos = [BRAND_ASSETS.quira?.logo, BRAND_ASSETS.rdl?.logo, BRAND_ASSETS.engforte?.logo].filter(Boolean)
+  return (
+    <div className="auth">
+      <aside className="auth-art" aria-hidden="true">
+        <div className="auth-art-top"><span className="brand-mark">RV</span><span><b>Rogério Vieira</b><small>Engenharia · gestão de obras</small></span></div>
+        <BuildingDrawing />
+        <div className="auth-art-bottom">
+          <p className="auth-quote">cada obra, cada diária,<br /><em>cada centavo no lugar.</em></p>
+          <div className="auth-logos">{logos.map((l, i) => <img key={i} src={l} alt="" />)}</div>
+        </div>
+      </aside>
+      <main className="auth-main">{children}</main>
     </div>
+  )
+}
+
+/** Desenho técnico animado: fachada de 3 pavimentos × 3 apartamentos, com cotas. */
+function BuildingDrawing() {
+  const W = 300, floorH = 70, x0 = 60, y0 = 60
+  const floors = [0, 1, 2]
+  return (
+    <svg className="blueprint" viewBox="0 0 420 360">
+      <g className="bp-grid">
+        {Array.from({ length: 22 }, (_, i) => <line key={'v' + i} x1={i * 20} y1="0" x2={i * 20} y2="360" />)}
+        {Array.from({ length: 19 }, (_, i) => <line key={'h' + i} x1="0" y1={i * 20} x2="420" y2={i * 20} />)}
+      </g>
+      <g className="bp-draw">
+        {/* telhado e estrutura */}
+        <path d={`M${x0 - 14} ${y0} L${x0 + W / 2} ${y0 - 34} L${x0 + W + 14} ${y0}`} style={{ ['--d' as string]: '0s' }} />
+        <rect x={x0} y={y0} width={W} height={floorH * 3} style={{ ['--d' as string]: '.4s' }} />
+        {floors.slice(1).map((f) => <line key={f} x1={x0} x2={x0 + W} y1={y0 + f * floorH} y2={y0 + f * floorH} style={{ ['--d' as string]: `${0.9 + f * 0.2}s` }} />)}
+        {/* 9 apartamentos: janelas */}
+        {floors.map((f) => [0, 1, 2].map((c) => (
+          <rect key={`${f}${c}`} className="bp-win" x={x0 + 26 + c * 94} y={y0 + 16 + f * floorH} width={60} height={36} rx="2" style={{ ['--d' as string]: `${1.4 + (f * 3 + c) * 0.12}s` }} />
+        )))}
+        {/* porta e chão */}
+        <line x1={x0 - 30} x2={x0 + W + 30} y1={y0 + floorH * 3} y2={y0 + floorH * 3} className="bp-ground" style={{ ['--d' as string]: '.2s' }} />
+      </g>
+      <g className="bp-dim">
+        <line x1={x0} x2={x0 + W} y1={y0 + floorH * 3 + 26} y2={y0 + floorH * 3 + 26} />
+        <line x1={x0} x2={x0} y1={y0 + floorH * 3 + 18} y2={y0 + floorH * 3 + 34} />
+        <line x1={x0 + W} x2={x0 + W} y1={y0 + floorH * 3 + 18} y2={y0 + floorH * 3 + 34} />
+        <text x={x0 + W / 2} y={y0 + floorH * 3 + 46} textAnchor="middle">3 pav. · 9 unidades</text>
+        <line x1={x0 + W + 30} x2={x0 + W + 30} y1={y0} y2={y0 + floorH * 3} />
+        {floors.map((f) => <text key={f} x={x0 + W + 38} y={y0 + floorH * (2.6 - f)} >{f + 1}º</text>)}
+      </g>
+      <g className="bp-stamp">
+        <rect x="262" y="318" width="150" height="34" />
+        <text x="270" y="332">PRANCHA 01/01</text>
+        <text x="270" y="345">FACHADA · ESC. 1:100</text>
+      </g>
+    </svg>
   )
 }
 
@@ -239,14 +309,15 @@ function NewPassword({ onDone }: { onDone: () => void }) {
     onDone()
   }
   return (
-    <div className="center-screen login">
-      <form className="card login-card" onSubmit={submit}>
-        <h2>Criar nova senha</h2>
-        <label className="field"><span className="field-label">Nova senha</span><input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-        {error && <p className="error">{error}</p>}
-        <button className="btn primary block">Salvar senha</button>
+    <AuthLayout>
+      <form className="auth-form" onSubmit={submit}>
+        <span className="auth-eyebrow">nova senha</span>
+        <h1 className="auth-title"><span>crie</span> sua senha</h1>
+        <label className="auth-field"><span>Nova senha</span><input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
+        {error && <p className="auth-msg err">{error}</p>}
+        <button className="auth-submit">Salvar senha</button>
       </form>
-    </div>
+    </AuthLayout>
   )
 }
 
