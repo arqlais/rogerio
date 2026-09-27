@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import type { CalEvent, EventKind, Tx } from '../types'
 import { TxForm } from '../components/TxForm'
+import { CLOUD, agendaUrl } from '../cloud'
+import { buildICS } from '../ics'
 import { Field, Modal, confirmDialog, toast } from '../components/ui'
-import { WEEKDAYS, addDays, addMonth, addMonths, daysBetween, fmtDate, inScope, money, month, monthName, projectName, toDate, today, uid } from '../utils'
+import { downloadFile, ownedBy, WEEKDAYS, addDays, addMonth, addMonths, daysBetween, fmtDate, inScope, money, month, monthName, projectName, toDate, today, uid } from '../utils'
 
 const KINDS: Record<EventKind, [string, string]> = {
   visita: ['Visita à obra', '#e8772e'],
@@ -51,7 +53,7 @@ export function Agenda() {
   const items: Item[] = []
   for (const ev of data.events) for (const d of occurrences(ev, from, addDays(to, 60))) items.push({ type: 'event', date: d, ev })
   if (showMoney) for (const t of data.txs) if (!t.paid && t.kind !== 'transfer' && inScope(t, scope)) items.push({ type: 'tx', date: t.due, tx: t })
-  for (const p of data.projects) if (p.end && p.status !== 'concluida' && (scope === 'all' || p.entityId === scope)) items.push({ type: 'obra', date: p.end, id: p.id, name: p.name })
+  for (const p of data.projects) if (p.end && p.status !== 'concluida' && ownedBy(p.entityId, scope)) items.push({ type: 'obra', date: p.end, id: p.id, name: p.name })
   const on = (d: string) => items.filter((i) => i.date === d).sort((a, b) => (a.type === 'event' ? a.ev.time ?? '' : 'zz').localeCompare(b.type === 'event' ? b.ev.time ?? '' : 'zz'))
   const upcoming = items.filter((i) => i.type === 'event' && i.date >= today() && i.date <= addDays(today(), 14) && !i.ev.done).sort((a, b) => a.date.localeCompare(b.date))
 
@@ -126,6 +128,7 @@ export function Agenda() {
             <div className="card-head"><h2>{fmtDate(day)} · {WEEKDAYS[toDate(day).getDay()]}</h2><button className="link" onClick={() => setEdit({ date: day })}>+ adicionar</button></div>
             {on(day).length ? on(day).map((it, i) => <Row key={i} it={it} />) : <p className="muted">Nada neste dia.</p>}
           </section>
+          <PhoneSync />
           <section className="card">
             <div className="card-head"><h2>Próximos 14 dias</h2></div>
             {upcoming.length ? upcoming.map((it, i) => <div key={i} className="ag-up"><small>{fmtDate(it.date).slice(0, 5)}</small><Row it={it} /></div>) : <p className="muted">Nenhum compromisso marcado.</p>}
@@ -178,5 +181,78 @@ export function EventForm({ initial, onClose }: { initial: Partial<CalEvent>; on
         <Field label="Anotações" span={2}><textarea rows={3} value={e.notes ?? ''} onChange={(x) => set({ notes: x.target.value })} aria-label="Anotações" /></Field>
       </div>
     </Modal>
+  )
+}
+
+/** Ligar a agenda do site ao calendário do celular/iPad (assinatura de um link .ics). */
+function PhoneSync() {
+  const { data, setSettings, userId, publishAgendaNow, demo } = useStore()
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const token = data.settings.calendarToken
+  const sync = { compromissos: true, contas: true, obras: true, ...(data.settings.calendarSync ?? {}) }
+  const url = token && userId ? agendaUrl(userId, token) : ''
+  const webcal = url.replace(/^https?:/, 'webcal:')
+  const turnOn = async () => {
+    const t = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => b.toString(16).padStart(2, '0')).join('')
+    setBusy(true)
+    const ok = await publishAgendaNow(t)
+    setBusy(false)
+    if (!ok) return toast('Não consegui criar o link. Confira se o SQL do Supabase foi rodado (ele cria a pasta "agenda").', 'err')
+    setSettings({ calendarToken: t })
+    toast('Agenda ligada! Agora adicione o link no celular.')
+  }
+  const turnOff = async () => {
+    if (!(await confirmDialog('Desligar a agenda do celular? O link atual para de funcionar.', 'Desligar'))) return
+    await publishAgendaNow('')
+    setSettings({ calendarToken: undefined })
+  }
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); toast('Link copiado') } catch { toast('Selecione o link e copie', 'err') }
+  }
+  const download = () => downloadFile('agenda-obras.ics', buildICS(data), 'text/calendar')
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Agenda no celular</h2><small className="muted">{token ? 'ligada · atualiza sozinha' : 'veja tudo no calendário do iPhone, iPad ou Google'}</small></div>
+        <button className="link" onClick={() => setOpen(!open)}>{open ? 'fechar' : token ? 'ver link' : 'ligar'}</button>
+      </div>
+      {open && (
+        <div className="phone-sync">
+          {demo ? <p className="muted">Você está vendo o exemplo. Toque no olho (menu lateral) para voltar aos seus dados e ligar a agenda.</p>
+          : !CLOUD ? (
+            <>
+              <p className="muted small">A ligação automática funciona quando o site está com login (nuvem). Por enquanto, dá para baixar o arquivo e abrir no celular (não atualiza sozinho).</p>
+              <button className="btn small" onClick={download}>Baixar agenda (.ics)</button>
+            </>
+          ) : !token ? (
+            <>
+              <p className="small">Compromissos, contas a pagar/receber e prazos das obras aparecem no calendário do celular, com lembrete. Tudo que mudar aqui chega lá sozinho (em até 1 hora).</p>
+              <button className="btn primary small" disabled={busy} onClick={turnOn}>{busy ? 'Ligando…' : 'Ligar agenda do celular'}</button>
+            </>
+          ) : (
+            <>
+              <a className="btn primary small" href={webcal}>Adicionar no iPhone / iPad (1 toque)</a>
+              <div className="link-box"><input readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Link da agenda" /><button className="btn small" onClick={copy}>Copiar</button></div>
+              <details>
+                <summary>iPhone / iPad, passo a passo</summary>
+                <ol><li>Toque em <b>Adicionar no iPhone / iPad</b> acima e confirme <b>Assinar</b>.</li><li>Se não abrir: copie o link → <b>Ajustes</b> → <b>Calendário</b> → <b>Contas</b> → <b>Adicionar Conta</b> → <b>Outra</b> → <b>Adicionar Calendário Assinado</b> → cole o link → <b>Seguinte</b> → <b>Salvar</b>.</li></ol>
+              </details>
+              <details>
+                <summary>Android / Google Agenda</summary>
+                <ol><li>No computador, abra <b>calendar.google.com</b>.</li><li>Na esquerda, em <b>Outras agendas</b>, toque no <b>+</b> → <b>Do URL</b>.</li><li>Cole o link e clique em <b>Adicionar agenda</b>. Em alguns minutos aparece no celular.</li></ol>
+              </details>
+              <div className="sync-opts">
+                <small className="muted">O que vai para o celular:</small>
+                {([['compromissos', 'Compromissos'], ['contas', 'Contas a pagar e receber'], ['obras', 'Término das obras']] as const).map(([k, l]) => (
+                  <label key={k} className="check small"><input type="checkbox" checked={sync[k]} onChange={(e) => setSettings({ calendarSync: { ...sync, [k]: e.target.checked } })} /> {l}</label>
+                ))}
+              </div>
+              <button className="link small" onClick={turnOff}>desligar agenda do celular</button>
+            </>
+          )}
+        </div>
+      )}
+    </section>
   )
 }

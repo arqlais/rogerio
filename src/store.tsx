@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { CLOUD, PROJECT_REF, fetchRemote, pushRemote } from './cloud'
+import { CLOUD, PROJECT_REF, fetchRemote, publishAgenda, pushRemote } from './cloud'
+import { buildICS } from './ics'
 import { ARTIFACT } from './env'
 import { setFilesUser } from './files'
 import schemaSql from '../supabase/schema.sql?raw'
 import type { Category, Collection, Data, Entity, Settings } from './types'
 import { BRAND_ASSETS } from './brandAssets'
-import { addDays, addMonths, today, uid } from './utils'
+import { addDays, addMonths, setCompanyIds, today, uid } from './utils'
 
 const KEY = 'rogerio-gestao-v1'
 const META = 'rogerio-gestao-meta'
@@ -24,7 +25,7 @@ export const DEFAULT_CATEGORIES = (): Category[] => [
   cat('Outras receitas', 'in', 'ambos'),
 ]
 
-export const DEFAULT_SETTINGS: Settings = { owner: 'Rogério', scope: 'all', payday: 5, weekStart: 1 }
+export const DEFAULT_SETTINGS: Settings = { owner: 'Rogério', scope: 'empresa', payday: 5, weekStart: 1 }
 const withProfile = (s: Settings): Settings => ({ ...s, profile: { ...DEFAULT_PROFILE, ...(s.profile ?? {}) } })
 
 /** Dados das empresas (tirados dos orçamentos, NF, contrato e placa de obra). Tudo editável no perfil da empresa. */
@@ -213,11 +214,25 @@ interface Store {
   replaceAll: (d: Data) => void
   setSettings: (s: Partial<Settings>) => void
   sync: Sync
+  savedAt?: string
   userEmail?: string
+  userId?: string
+  publishAgendaNow: (token?: string) => Promise<boolean>
+  demo: boolean // mostrando o exemplo preenchido (não mexe nos dados reais)
+  setDemo: (v: boolean) => void
+  resetDemo: () => void
 }
 
 const Ctx = createContext<Store | null>(null)
 export const useStore = () => useContext(Ctx)!
+
+const DEMO = 'rogerio-gestao-exemplo'
+const DEMO_ON = 'rogerio-gestao-exemplo-ligado'
+const lsGet = (k: string) => { try { return localStorage.getItem(k) } catch { return null } }
+const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* bloqueado */ } }
+function loadDemo(): Data | null {
+  try { const s = lsGet(DEMO); return s ? normalize(JSON.parse(s)) : null } catch { return null }
+}
 
 function loadLocal(): Data | null {
   try {
@@ -230,7 +245,13 @@ function loadLocal(): Data | null {
 
 export function StoreProvider({ children, userId, userEmail }: { children: ReactNode; userId?: string; userEmail?: string }) {
   if (userId) setFilesUser(userId)
-  const [data, setData] = useState<Data>(() => loadLocal() ?? (ARTIFACT ? sampleData() : emptyData()))
+  const [data, setData] = useState<Data>(() => loadLocal() ?? emptyData())
+  // modo exemplo: um conjunto separado, só neste aparelho; os dados reais ficam intactos
+  const [demo, setDemoState] = useState(() => { const v = lsGet(DEMO_ON); return v === null ? ARTIFACT : v === '1' })
+  const [demoData, setDemoData] = useState<Data>(() => loadDemo() ?? sampleData())
+  const demoRef = useRef(demo)
+  demoRef.current = demo
+  const [savedAt, setSavedAt] = useState<string>()
   const [ready, setReady] = useState(!userId)
   const [sync, setSync] = useState<Sync>(userId ? 'salvando' : 'local')
   const [loadError, setLoadError] = useState('')
@@ -270,37 +291,56 @@ export function StoreProvider({ children, userId, userEmail }: { children: React
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
       pushRemote(userId, data)
-        .then((at) => { localStorage.setItem(META, at); setSync('salvo') })
+        .then((at) => { localStorage.setItem(META, at); setSync('salvo'); setSavedAt(new Date().toTimeString().slice(0, 5)) })
         .catch((e) => { console.error(e); setSync('erro') })
     }, 700)
   }, [data, ready, userId])
 
-  const update = useCallback((fn: (d: Data) => Data) => setData((d) => fn(d)), [])
+  useEffect(() => { lsSet(DEMO, JSON.stringify(demoData)) }, [demoData])
+
+  // agenda do celular: republica o .ics (só dos dados reais) alguns segundos depois de cada mudança
+  const agTimer = useRef<number | undefined>(undefined)
+  const publishAgendaNow = useCallback(async (token?: string) => {
+    if (!CLOUD || !userId) return false
+    try { await publishAgenda(userId, token ?? data.settings.calendarToken ?? '', buildICS(data)); return true } catch (e) { console.error(e); return false }
+  }, [data, userId])
+  useEffect(() => {
+    if (!ready || !CLOUD || !userId || !data.settings.calendarToken) return
+    window.clearTimeout(agTimer.current)
+    agTimer.current = window.setTimeout(() => { void publishAgendaNow() }, 4000)
+  }, [data, ready, userId, publishAgendaNow])
+  const setDemo = useCallback((v: boolean) => { setDemoState(v); lsSet(DEMO_ON, v ? '1' : '0') }, [])
+  const resetDemo = useCallback(() => setDemoData(sampleData()), [])
+  // todas as alterações vão para o conjunto que está na tela
+  const setCur = useCallback((fn: (d: Data) => Data) => (demoRef.current ? setDemoData(fn) : setData(fn)), [])
+  const cur = demo ? demoData : data
+  setCompanyIds(cur.entities.filter((e) => e.kind === 'empresa').map((e) => e.id))
+  const update = useCallback((fn: (d: Data) => Data) => setCur((d) => fn(d)), [setCur])
   const save = useCallback(<K extends Collection>(k: K, item: Item<K>) => {
-    setData((d) => {
+    setCur((d) => {
       const list = d[k] as Item<K>[]
       const i = list.findIndex((x) => x.id === item.id)
       const next = i >= 0 ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item]
       return { ...d, [k]: next }
     })
-  }, [])
+  }, [setCur])
   const saveMany = useCallback(<K extends Collection>(k: K, items: Item<K>[]) => {
-    setData((d) => {
+    setCur((d) => {
       const ids = new Set(items.map((x) => x.id))
       const list = (d[k] as Item<K>[]).filter((x) => !ids.has(x.id))
       return { ...d, [k]: [...list, ...items] }
     })
-  }, [])
+  }, [setCur])
   const remove = useCallback(<K extends Collection>(k: K, id: string) => {
-    setData((d) => ({ ...d, [k]: (d[k] as Item<K>[]).filter((x) => x.id !== id) }))
-  }, [])
-  const replaceAll = useCallback((d: Data) => setData(normalize(d)), [])
-  const setSettings = useCallback((s: Partial<Settings>) => setData((d) => ({ ...d, settings: { ...d.settings, ...s } })), [])
+    setCur((d) => ({ ...d, [k]: (d[k] as Item<K>[]).filter((x) => x.id !== id) }))
+  }, [setCur])
+  const replaceAll = useCallback((d: Data) => setCur(() => normalize(d)), [setCur])
+  const setSettings = useCallback((s: Partial<Settings>) => setCur((d) => ({ ...d, settings: { ...d.settings, ...s } })), [setCur])
 
   if (loadError) return <CloudSetup error={loadError} />
   if (!ready) return <div className="center-screen"><div className="spinner" /></div>
 
-  return <Ctx.Provider value={{ data, update, save, saveMany, remove, replaceAll, setSettings, sync, userEmail }}>{children}</Ctx.Provider>
+  return <Ctx.Provider value={{ data: cur, update, save, saveMany, remove, replaceAll, setSettings, sync, savedAt, userEmail, userId, publishAgendaNow, demo, setDemo, resetDemo }}>{children}</Ctx.Provider>
 }
 
 /** Tela quando a tabela ainda não existe no Supabase: mostra o SQL pronto para copiar. */

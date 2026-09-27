@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { Tx } from '../types'
-import { accountName, entityName, fmtDateShort, isLate, money, personName, projectName, today } from '../utils'
+import { signed, accountName, entityName, fmtDateShort, isLate, money, personName, projectName, today } from '../utils'
 import { TxForm } from './TxForm'
 import { Badge, Empty, toast } from './ui'
 import { printReceipt } from './Receipt'
@@ -16,12 +16,7 @@ export function TxList({ txs, hide = [], empty, scope = 'all' }: { txs: Tx[]; hi
     save('txs', { ...t, paid: today() })
     toast(t.kind === 'in' ? 'Marcado como recebido' : 'Marcado como pago')
   }
-  const sign = (t: Tx) => {
-    if (t.kind === 'in') return 1
-    if (t.kind === 'out') return -1
-    if (scope !== 'all' && t.toEntityId === scope && t.entityId !== scope) return 1
-    return scope === 'all' ? 0 : -1
-  }
+  const sign = (t: Tx) => Math.sign(signed(t, scope))
 
   return (
     <>

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { CLOUD, supabase } from './cloud'
 import { ARTIFACT } from './env'
+import { confirmDialog, toast } from './components/ui'
 import { StoreProvider, useStore } from './store'
 import { go, useRoute } from './router'
 import { TxForm } from './components/TxForm'
@@ -42,13 +43,27 @@ export default function App() {
 
 function Shell() {
   const route = useRoute()
-  const { data, setSettings, sync } = useStore()
+  const { data, setSettings, sync, savedAt, userEmail, demo, setDemo } = useStore()
+  const [theme, setTheme] = useTheme()
   const [tx, setTx] = useState<Partial<Tx> | null>(null)
   const [menu, setMenu] = useState(false)
   const [more, setMore] = useState(false)
   const scope = data.settings.scope
-  const validScope = scope === 'all' || data.entities.some((e) => e.id === scope)
-  useEffect(() => { if (!validScope) setSettings({ scope: 'all' }) }, [validScope, setSettings])
+  const validScope = scope === 'all' || scope === 'empresa' || data.entities.some((e) => e.id === scope)
+  useEffect(() => { if (!validScope) setSettings({ scope: 'empresa' }) }, [validScope, setSettings])
+  const pessoal = data.entities.find((e) => e.kind === 'pessoal')
+  const companies = [...data.entities.filter((e) => e.kind === 'empresa')].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite))
+  const scopeCompany = companies.find((e) => e.id === scope)
+  const inEmpresa = scope === 'empresa' || !!scopeCompany
+  const toggleDemo = () => { setDemo(!demo); toast(demo ? 'Voltou para os seus dados' : 'Mostrando o exemplo preenchido — seus dados continuam guardados') }
+  const tools = (
+    <div className="side-tools">
+      <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'} aria-label={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
+      <button className={`icon-btn ${demo ? 'on' : ''}`} onClick={toggleDemo} title={demo ? 'Esconder o exemplo (voltar aos meus dados)' : 'Ver exemplo preenchido'} aria-label="Exemplo preenchido"><Icon name={demo ? 'eye' : 'eyeOff'} /></button>
+      <span style={{ flex: 1 }} />
+      {CLOUD && <button className="icon-btn" onClick={async () => { if (await confirmDialog('Sair da conta neste aparelho?', 'Sair', false)) signOut() }} title="Sair" aria-label="Sair"><Icon name="logout" /></button>}
+    </div>
+  )
 
   const page = route[0] ?? ''
   let content: ReactNode
@@ -85,28 +100,32 @@ function Shell() {
             </a>
           ))}
         </nav>
-        <a className="me" href="#/perfil">
-          {data.settings.profile?.photo ? <img src={data.settings.profile.photo} alt="" /> : <span className="avatar">{(data.settings.profile?.fullName || data.settings.owner || 'R').slice(0, 1)}</span>}
-          <span>{data.settings.profile?.fullName || data.settings.owner}<small>{data.settings.profile?.profession || 'meu perfil'}</small></span>
-        </a>
-        <div className="sync">{sync === 'local' ? 'Salvo neste aparelho' : sync === 'salvando' ? 'Salvando…' : sync === 'erro' ? '⚠ Erro ao salvar na nuvem' : '✓ Salvo na nuvem'}</div>
+        <div className="side-foot">
+          <a className="me" href="#/perfil">
+            {data.settings.profile?.photo ? <img src={data.settings.profile.photo} alt="" /> : <span className="avatar"><Icon name="user" size={18} /></span>}
+            <span>{(shortName(data.settings.profile?.fullName) || data.settings.owner || '').toLowerCase()}<small>{userEmail || data.settings.profile?.email || 'meu perfil'}</small></span>
+          </a>
+          <div className="sync"><span className={`sync-dot ${sync}`} />{sync === 'local' ? 'salvo neste aparelho' : sync === 'salvando' ? 'salvando…' : sync === 'erro' ? 'erro ao salvar na nuvem' : `salvo na nuvem${savedAt ? ` · ${savedAt}` : ''}`}</div>
+          {tools}
+        </div>
       </aside>
 
       <div className="main">
         <header className="topbar">
           <div className="scope" role="radiogroup" aria-label="Ver finanças de">
-            <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
-            {data.entities.filter((e) => e.favorite || e.id === scope).map((e) => (
-              <button key={e.id} className={scope === e.id ? 'on' : ''} onClick={() => setSettings({ scope: e.id })} style={{ ['--c' as string]: e.color }}>
-                {e.kind === 'pessoal' ? <span className="dot" style={{ background: e.color }} /> : <EntityMark e={e} size={20} />}
-                {e.name}
-              </button>
-            ))}
-            {data.entities.some((e) => !e.favorite && e.id !== scope) && (
-              <select className="scope-more" value="" onChange={(e) => e.target.value && setSettings({ scope: e.target.value })} aria-label="Outras empresas">
-                <option value="">Outras…</option>
-                {data.entities.filter((e) => !e.favorite && e.id !== scope).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
+            <div className="scope-seg">
+              <button className={inEmpresa ? 'on' : ''} onClick={() => setSettings({ scope: 'empresa' })}>Empresa</button>
+              {pessoal && <button className={scope === pessoal.id ? 'on' : ''} onClick={() => setSettings({ scope: pessoal.id })}>Pessoal</button>}
+              <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
+            </div>
+            {inEmpresa && companies.length > 1 && (
+              <label className={`cnpj-pick ${scopeCompany ? 'on' : ''}`}>
+                {scopeCompany ? <EntityMark e={scopeCompany} size={18} /> : 'CNPJ'}
+                <select value={scopeCompany?.id ?? ''} onChange={(e) => setSettings({ scope: e.target.value || 'empresa' })} aria-label="Filtrar por CNPJ">
+                  <option value="">todos</option>
+                  {companies.map((e) => <option key={e.id} value={e.id}>{e.name}{e.doc ? ` · ${e.doc}` : ''}</option>)}
+                </select>
+              </label>
             )}
           </div>
           <div className="new-wrap">
@@ -126,7 +145,8 @@ function Shell() {
             )}
           </div>
         </header>
-        {ARTIFACT && <div className="preview-bar">Prévia com dados de exemplo — mexa à vontade: o que você muda fica só neste navegador. Para começar do zero, vá em Ajustes.</div>}
+        {ARTIFACT && !demo && <div className="demo-bar">Prévia · versão vazia, para preencher. O que você muda fica só neste navegador. <button className="link" onClick={toggleDemo}>ver exemplo preenchido</button></div>}
+        {demo && <div className="demo-bar"><Icon name="eye" size={16} /> Você está vendo um <b>exemplo preenchido</b>. Seus dados continuam guardados. <button className="link" onClick={toggleDemo}>voltar para os meus dados</button></div>}
         <main className="content">{content}</main>
       </div>
 
@@ -149,6 +169,7 @@ function Shell() {
             {NAV.filter(([k]) => !MOBILE.includes(k)).map(([k, l, i]) => (
               <a key={k} href={`#/${k}`} onClick={() => setMore(false)}><span className="nav-i"><Icon name={i} /></span>{l}</a>
             ))}
+            {tools}
           </div>
         </>
       )}
@@ -241,3 +262,16 @@ function NewPassword({ onDone }: { onDone: () => void }) {
 
 const initials = (n: string) => { const w = n.trim().split(/\s+/); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase() }
 const shortName = (n?: string) => { if (!n) return ''; const w = n.trim().split(/\s+/); return w.length > 1 ? `${w[0]} ${w[w.length - 1]}` : w[0] }
+
+/** Tema claro/escuro, lembrado neste aparelho (começa pelo tema do sistema). */
+function useTheme(): ['light' | 'dark', (t: 'light' | 'dark') => void] {
+  const [t, setT] = useState<'light' | 'dark'>(() => {
+    try { const v = localStorage.getItem('rogerio-tema'); if (v === 'light' || v === 'dark') return v } catch { /* bloqueado */ }
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  useEffect(() => {
+    document.documentElement.dataset.theme = t
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'dark' ? '#0e1522' : '#172a4d')
+  }, [t])
+  return [t, (v) => { setT(v); try { localStorage.setItem('rogerio-tema', v) } catch { /* bloqueado */ } }]
+}

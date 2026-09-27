@@ -114,8 +114,8 @@ export function Donut({ rows, total, center }: { rows: [string, number][]; total
           acc += len
           return el
         })}
-        <text x="80" y="76" textAnchor="middle" className="donut-v">{hover !== null ? moneyShort(parts[hover][1]) : center ?? moneyShort(total)}</text>
-        <text x="80" y="96" textAnchor="middle" className="donut-l">{hover !== null ? `${Math.round((parts[hover][1] / total) * 100)}%` : 'no mês'}</text>
+        <text x="80" y="76" textAnchor="middle" className="donut-v">{(hover !== null ? moneyShort(parts[hover][1]) : center ?? moneyShort(total)).replace('R$ ', '')}</text>
+        <text x="80" y="96" textAnchor="middle" className="donut-l">{hover !== null ? `R$ · ${Math.round((parts[hover][1] / total) * 100)}%` : 'reais no mês'}</text>
       </svg>
       <ul className="donut-legend">
         {parts.map(([l, v, c], i) => (

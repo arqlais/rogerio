@@ -31,5 +31,16 @@ create policy "documentos: dono cria"   on storage.objects for insert to authent
 create policy "documentos: dono altera" on storage.objects for update to authenticated using (bucket_id = 'documentos' and (storage.foldername(name))[1] = auth.uid()::text) with check (bucket_id = 'documentos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "documentos: dono apaga"  on storage.objects for delete to authenticated using (bucket_id = 'documentos' and (storage.foldername(name))[1] = auth.uid()::text);
 
+-- Agenda do celular: arquivo .ics por usuário no bucket "agenda" (endereço com chave secreta).
+insert into storage.buckets (id, name, public) values ('agenda', 'agenda', true) on conflict (id) do update set public = true;
+drop policy if exists "agenda: dono vê"     on storage.objects;
+drop policy if exists "agenda: dono cria"   on storage.objects;
+drop policy if exists "agenda: dono altera" on storage.objects;
+drop policy if exists "agenda: dono apaga"  on storage.objects;
+create policy "agenda: dono vê"     on storage.objects for select to authenticated using (bucket_id = 'agenda' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "agenda: dono cria"   on storage.objects for insert to authenticated with check (bucket_id = 'agenda' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "agenda: dono altera" on storage.objects for update to authenticated using (bucket_id = 'agenda' and (storage.foldername(name))[1] = auth.uid()::text) with check (bucket_id = 'agenda' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "agenda: dono apaga"  on storage.objects for delete to authenticated using (bucket_id = 'agenda' and (storage.foldername(name))[1] = auth.uid()::text);
+
 -- avisa a API que a tabela nova existe (resolve "Could not find the table ... in the schema cache")
 notify pgrst, 'reload schema';

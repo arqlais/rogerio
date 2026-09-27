@@ -1,4 +1,4 @@
-import { useStore, emptyData, sampleData } from '../store'
+import { useStore, emptyData } from '../store'
 import { CLOUD } from '../cloud'
 import { signOut } from '../App'
 import { Field, NumInput, confirmDialog, toast } from '../components/ui'
@@ -6,7 +6,7 @@ import { downloadFile, today } from '../utils'
 import type { Data } from '../types'
 
 export function SettingsPage() {
-  const { data, setSettings, replaceAll, userEmail } = useStore()
+  const { data, setSettings, replaceAll, userEmail, demo, setDemo, resetDemo } = useStore()
   const s = data.settings
 
   const backup = () => downloadFile(`backup-gestao-${today()}.json`, JSON.stringify(data, null, 2), 'application/json')
@@ -27,10 +27,7 @@ export function SettingsPage() {
     replaceAll({ ...emptyData(), settings: { ...emptyData().settings, owner: s.owner } })
     toast('Tudo apagado')
   }
-  const sample = async () => {
-    if (!(await confirmDialog('Carregar dados de exemplo? Eles substituem o que está cadastrado agora.', 'Carregar exemplo'))) return
-    replaceAll(sampleData())
-  }
+  const sample = () => setDemo(!demo)
 
   return (
     <div className="page narrow">
@@ -59,8 +56,9 @@ export function SettingsPage() {
       <section className="card">
         <div className="card-head"><h2>Começar de novo</h2></div>
         <div className="row wrap">
-          <button className="btn" onClick={sample}>Carregar dados de exemplo</button>
-          <button className="btn danger" onClick={reset}>Apagar tudo e começar do zero</button>
+          <button className="btn" onClick={sample}>{demo ? 'Esconder o exemplo (voltar aos meus dados)' : 'Ver exemplo preenchido'}</button>
+          {demo && <button className="btn" onClick={resetDemo}>Recomeçar o exemplo</button>}
+          {!demo && <button className="btn danger" onClick={reset}>Apagar tudo e começar do zero</button>}
         </div>
       </section>
     </div>

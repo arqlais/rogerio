@@ -29,3 +29,21 @@ export async function pushRemote(userId: string, payload: Data): Promise<string>
   if (error) throw error
   return updatedAt
 }
+
+/* Agenda do celular: arquivo .ics num endereço secreto do bucket público "agenda". */
+const AG = 'agenda'
+export const SUPABASE_URL = url.replace(/\/$/, '')
+const agendaPath = (userId: string, token: string) => `${userId}/${token}.ics`
+export const agendaUrl = (userId: string, token: string) => `${SUPABASE_URL}/storage/v1/object/public/${AG}/${agendaPath(userId, token)}`
+
+/** Publica (ou, sem token, apaga) a agenda do usuário, removendo links antigos. */
+export async function publishAgenda(userId: string, token: string, ics: string) {
+  const st = supabase!.storage.from(AG)
+  const { data: files, error } = await st.list(userId)
+  if (error) throw error
+  const old = (files ?? []).filter((f) => f.name !== `${token}.ics`).map((f) => `${userId}/${f.name}`)
+  if (old.length) await st.remove(old)
+  if (!token) return
+  const { error: e2 } = await st.upload(agendaPath(userId, token), new Blob([ics], { type: 'text/calendar' }), { upsert: true, contentType: 'text/calendar; charset=utf-8', cacheControl: '60' })
+  if (e2) throw e2
+}

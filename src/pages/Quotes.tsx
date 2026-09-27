@@ -5,7 +5,7 @@ import type { Data, Entity, Quote, QuoteItem } from '../types'
 import { Attachments } from '../components/Attachments'
 import { Badge, EntityMark, Empty, Field, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
 import { downloadPdf } from '../pdf'
-import { addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
+import { ownedBy, addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
 
 const STATUS: Record<Quote['status'], [string, 'muted' | 'info' | 'good' | 'bad']> = {
   rascunho: ['Rascunho', 'muted'],
@@ -40,7 +40,7 @@ function QuoteList() {
   const scope = data.settings.scope
   const [status, setStatus] = useState<'' | Quote['status']>('')
   const [q, setQ] = useState('')
-  const all = data.quotes.filter((x) => scope === 'all' || x.entityId === scope)
+  const all = data.quotes.filter((x) => ownedBy(x.entityId, scope))
   const list = all
     .filter((x) => (!status || x.status === status) && (!q || `${quoteClient(x)} ${x.title} ${x.number}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => b.date.localeCompare(a.date))

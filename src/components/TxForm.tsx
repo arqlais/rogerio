@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import type { Tx } from '../types'
-import { METHODS, addMonths, money, today, uid } from '../utils'
+import { isGroup, METHODS, addMonths, money, today, uid } from '../utils'
 import { Field, Modal, MoneyInput, confirmDialog, toast } from './ui'
 import { Attachments } from './Attachments'
 
@@ -12,7 +12,7 @@ export function TxForm({ initial, onClose }: { initial?: Partial<Tx>; onClose: (
   const { data, save, saveMany, remove, setSettings } = useStore()
   const editing = !!initial?.id && data.txs.some((t) => t.id === initial.id)
   const scope = data.settings.scope
-  const defEntity = initial?.entityId ?? (scope !== 'all' ? scope : data.entities.find((e) => e.id === data.settings.lastEntity)?.id ?? data.entities[0]?.id) ?? ''
+  const defEntity = initial?.entityId ?? (!isGroup(scope) ? scope : data.entities.find((e) => e.id === data.settings.lastEntity)?.id ?? data.entities[0]?.id) ?? ''
   const [t, setT] = useState<Tx>(() => ({
     id: uid(),
     kind: 'out',

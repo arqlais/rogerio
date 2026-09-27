@@ -22,7 +22,7 @@ try {
     page.on('pageerror', (e) => errors.push(e.message))
     page.on('popup', async (p) => { if (shots) { await p.waitForLoadState(); await p.setViewportSize({ width: 900, height: 1250 }); await p.screenshot({ path: `${shots}/${vp.name}-popup-${Date.now()}.png`, fullPage: true }).catch(() => {}) } await p.close() })
     const go = async (h) => { await page.evaluate((h) => (location.hash = h), h); await page.waitForTimeout(250) }
-    const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('rogerio-gestao-v1') || 'null'))
+    const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem(localStorage.getItem('rogerio-gestao-exemplo-ligado') === '1' ? 'rogerio-gestao-exemplo' : 'rogerio-gestao-v1') || 'null'))
     const shot = async (n) => shots && page.screenshot({ path: `${shots}/${vp.name}-${n}.png`, fullPage: true })
     const modalSave = async () => { await page.locator('.modal-foot .btn.primary').last().click(); await page.waitForTimeout(200) }
 
@@ -31,14 +31,15 @@ try {
     await page.reload()
     await page.waitForTimeout(500)
     ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: tela de boas-vindas`)
-    const names = await page.locator('.scope button').allInnerTexts()
-    ok(['Quira', 'RDL', 'Engforte', 'Pessoal'].every((n) => names.some((x) => x.includes(n))) && !names.some((x) => x.includes('AV')), `${vp.name}: principais no topo (Quira, RDL, Engforte, Pessoal) e AV em Outras`)
+    const names = await page.locator('.scope-seg button').allInnerTexts()
+    const cnpjs = await page.locator('.cnpj-pick option').allInnerTexts()
+    ok(['Empresa', 'Pessoal', 'Tudo'].every((n) => names.includes(n)) && ['Quira', 'RDL', 'Engforte', 'AV'].every((n) => cnpjs.some((x) => x.startsWith(n))), `${vp.name}: topo Empresa / Pessoal / Tudo com filtro de CNPJ`)
 
     // exemplo
     await page.getByText('Ver a plataforma com dados de exemplo').click()
-    await page.locator('.modal-foot .btn').last().click()
     await page.waitForTimeout(400)
-    ok((await stored())?.projects.length === 2, `${vp.name}: dados de exemplo carregados`)
+    ok((await stored())?.projects.length === 2, `${vp.name}: exemplo preenchido aparece`)
+    ok(JSON.parse(await page.evaluate(() => localStorage.getItem('rogerio-gestao-v1') || '{"projects":[]}')).projects.length === 0, `${vp.name}: dados reais continuam vazios e separados`)
     await shot('painel')
 
     for (const [h, n] of [['#/agenda', 'agenda'], ['#/financeiro', 'financeiro'], ['#/obras', 'obras'], ['#/orcamentos', 'orcamentos'], ['#/equipe/diarias', 'diarias'], ['#/equipe/folha', 'folha'], ['#/equipe/empreitadas', 'empreitadas'], ['#/equipe/pessoas', 'pessoas'], ['#/cadastros', 'empresas'], ['#/perfil', 'perfil'], ['#/cadastros/categorias', 'categorias'], ['#/config', 'ajustes']]) {
@@ -159,10 +160,21 @@ try {
     // carteira pessoal
     const pess = d6.entities.find((e) => e.kind === 'pessoal')
     await page.evaluate(() => (location.hash = '#/'))
-    await page.locator('.scope button', { hasText: 'Pessoal' }).click(); await page.waitForTimeout(250)
+    await page.locator('.scope-seg button', { hasText: 'Pessoal' }).click(); await page.waitForTimeout(250)
     await shot('pessoal')
     ok((await stored()).settings.scope === pess.id, `${vp.name}: filtro Pessoal`)
 
+    // filtro por CNPJ e modo escuro
+    await page.locator('.scope-seg button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
+    const rdlId = (await stored()).entities.find((e) => e.name === 'RDL').id
+    await page.locator('.cnpj-pick select').selectOption(rdlId); await page.waitForTimeout(250)
+    ok((await stored()).settings.scope === rdlId && await page.locator('.ficha-name', { hasText: 'RDL' }).count() > 0, `${vp.name}: filtro por CNPJ mostra a ficha da RDL`)
+    if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
+    await page.locator(vp.width < 800 ? '.sheet [aria-label="Modo escuro"]' : '.sidebar [aria-label="Modo escuro"]').click(); await page.waitForTimeout(250)
+    ok(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', `${vp.name}: modo escuro`)
+    await shot('escuro')
+    await page.locator(vp.width < 800 ? '.sheet [aria-label="Exemplo preenchido"]' : '.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
+    ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: olho volta para a versão vazia`)
     ok(errors.length === 0, `${vp.name}: nenhum erro de página ${errors.join(' | ')}`)
     await page.close()
   }

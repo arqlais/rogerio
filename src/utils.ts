@@ -97,15 +97,21 @@ export const isOpen = (t: Tx) => !t.paid
 export const isLate = (t: Tx, ref = today()) => !t.paid && t.due < ref
 
 /** Lançamento pertence à carteira em foco? (transferências contam para os dois lados) */
-export const inScope = (t: Tx, scope: string) => scope === 'all' || t.entityId === scope || t.toEntityId === scope
+/* Visão ativa: 'all' (tudo), 'empresa' (todos os CNPJs juntos) ou o id de um CNPJ / do pessoal. */
+let companyIds = new Set<string>()
+export const setCompanyIds = (ids: string[]) => { companyIds = new Set(ids) }
+export const isGroup = (scope: string) => scope === 'all' || scope === 'empresa'
+/** O item (conta, obra, orçamento…) desse CNPJ/pessoal aparece na visão ativa? */
+export const ownedBy = (entityId: string | undefined, scope: string) => scope === 'all' || (scope === 'empresa' ? !!entityId && companyIds.has(entityId) : entityId === scope)
+export const inScope = (t: Tx, scope: string) => ownedBy(t.entityId, scope) || ownedBy(t.toEntityId, scope)
 
 /** Efeito do lançamento no caixa da carteira (positivo = entrou) */
 export function signed(t: Tx, scope: string): number {
   if (t.kind === 'in') return t.amount
   if (t.kind === 'out') return -t.amount
-  if (scope === 'all') return 0
-  if (t.entityId === scope && t.toEntityId === scope) return 0
-  return t.toEntityId === scope ? t.amount : -t.amount
+  const from = ownedBy(t.entityId, scope), to = ownedBy(t.toEntityId, scope)
+  if (from === to) return 0 // transferência dentro da mesma visão (ex.: entre CNPJs) não é entrada nem saída
+  return to ? t.amount : -t.amount
 }
 
 export function accountBalance(d: Data, accountId: string, until = '9999-12-31'): number {
@@ -128,7 +134,7 @@ export function monthSummary(d: Data, ym: string, scope: string) {
     const ref = t.paid ?? t.due
     if (month(ref) !== ym) continue
     if (t.kind === 'transfer') {
-      if (scope === 'all' || !t.paid) continue
+      if (!t.paid) continue
       const s = signed(t, scope)
       if (s > 0) transfersIn += s
       else transfersOut -= s

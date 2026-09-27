@@ -245,6 +245,8 @@ export interface Settings {
   owner: string
   profile?: Profile
   scope: string // 'all' ou id da carteira em foco
+  calendarToken?: string // endereço secreto da agenda do celular
+  calendarSync?: { compromissos?: boolean; contas?: boolean; obras?: boolean }
   lastEntity?: string // última empresa usada nos formulários (já vem escolhida)
   payday: number // dia do pagamento dos fixos
   weekStart: number // 1 = segunda (fechamento das diárias)

@@ -5,7 +5,7 @@ import { TxList } from '../components/TxList'
 import { TxForm } from '../components/TxForm'
 import { Badge } from '../components/ui'
 import { HBars, Stat, Tabs } from '../components/ui'
-import { accountName, addDays, addMonth, downloadFile, entityName, fmtDate, inScope, isLate, money, month, monthName, personName, projectName, signed, toCSV, today } from '../utils'
+import { isGroup, accountName, addDays, addMonth, downloadFile, entityName, fmtDate, inScope, isLate, money, month, monthName, personName, projectName, signed, toCSV, today } from '../utils'
 
 type Tab = 'aberto' | 'extrato' | 'notas' | 'relatorio'
 
@@ -149,7 +149,7 @@ function Reports() {
     for (const t of txs) {
       if (t.kind === 'in') { inc[t.category] = (inc[t.category] ?? 0) + t.amount; retention += t.retention ?? 0; gross += t.gross ?? t.amount }
       else if (t.kind === 'out') { exp[t.category] = (exp[t.category] ?? 0) + t.amount; if (t.projectId) byProject[t.projectId] = (byProject[t.projectId] ?? 0) + t.amount }
-      else if (scope !== 'all') { const s = signed(t, scope); if (s > 0) tin += s; else tout -= s }
+      else { const s = signed(t, scope); if (s > 0) tin += s; else tout -= s }
     }
     const totalIn = Object.values(inc).reduce((a, b) => a + b, 0)
     const totalOut = Object.values(exp).reduce((a, b) => a + b, 0)
@@ -166,7 +166,7 @@ function Reports() {
   })
 
   const exportDRE = () => {
-    const rows: (string | number)[][] = [[`Resultado ${label}`, scope === 'all' ? 'Todas' : entityName(data, scope)], [], ['ENTRADAS', r.totalIn], ...r.inc.map(([k, v]) => ['  ' + k, v]), [], ['SAÍDAS', r.totalOut], ...r.exp.map(([k, v]) => ['  ' + k, v]), [], ['RESULTADO', r.totalIn - r.totalOut], ['Retenções nas notas', r.retention], ['Transferências recebidas', r.tin], ['Transferências enviadas / retiradas', r.tout]]
+    const rows: (string | number)[][] = [[`Resultado ${label}`, scope === 'all' ? 'Tudo' : scope === 'empresa' ? 'Empresa (todos os CNPJs)' : entityName(data, scope)], [], ['ENTRADAS', r.totalIn], ...r.inc.map(([k, v]) => ['  ' + k, v]), [], ['SAÍDAS', r.totalOut], ...r.exp.map(([k, v]) => ['  ' + k, v]), [], ['RESULTADO', r.totalIn - r.totalOut], ['Retenções nas notas', r.retention], ['Transferências recebidas', r.tin], ['Transferências enviadas / retiradas', r.tout]]
     downloadFile(`resultado-${label.replace(/\s/g, '-')}.csv`, toCSV(rows), 'text/csv')
   }
 
@@ -186,9 +186,9 @@ function Reports() {
         <Stat label="Entradas (recebido)" value={money(r.totalIn)} tone="good" sub={r.retention ? `bruto ${money(r.gross)} · retido ${money(r.retention)}` : undefined} />
         <Stat label="Saídas (pago)" value={money(r.totalOut)} tone="bad" />
         <Stat label="Resultado" value={money(r.totalIn - r.totalOut)} tone={r.totalIn - r.totalOut < 0 ? 'bad' : 'good'} sub={r.totalIn ? `margem ${Math.round(((r.totalIn - r.totalOut) / r.totalIn) * 100)}%` : undefined} />
-        {scope !== 'all' && <Stat label="Transferências" value={money(r.tin - r.tout)} sub={`recebidas ${money(r.tin)} · enviadas ${money(r.tout)}`} />}
+        {scope !== 'all' && <Stat label={scope === 'empresa' ? 'Retiradas (pró-labore, lucros)' : 'Transferências'} value={money(r.tin - r.tout)} sub={`recebidas ${money(r.tin)} · enviadas ${money(r.tout)}`} />}
       </div>
-      {scope === 'all' && data.entities.length > 1 && (
+      {isGroup(scope) && data.entities.length > 1 && (
         <section className="card">
           <div className="card-head"><h2>Por empresa / pessoal</h2></div>
           <table className="table">

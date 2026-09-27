@@ -7,7 +7,7 @@ import { TxList } from '../components/TxList'
 import { ContractForm } from '../components/ContractForm'
 import { Attachments } from '../components/Attachments'
 import { Badge, Empty, Field, HBars, Modal, MoneyInput, NumInput, Progress, Stat, Tabs, confirmDialog, toast } from '../components/ui'
-import { KIND_LABEL, STATUS_LABEL, UNIT_LABEL, addMonths, contractPaid, entityName, fmtDate, money, num, personName, projectStats, today, uid } from '../utils'
+import { isGroup, ownedBy, KIND_LABEL, STATUS_LABEL, UNIT_LABEL, addMonths, contractPaid, entityName, fmtDate, money, num, personName, projectStats, today, uid } from '../utils'
 
 const STATUS_TONE = { orcamento: 'info', andamento: 'good', pausada: 'warn', concluida: 'muted' } as const
 
@@ -17,7 +17,7 @@ export function Projects() {
   const [edit, setEdit] = useState<Partial<Project> | null>(null)
   const [status, setStatus] = useState<'ativas' | 'todas' | 'concluida'>('ativas')
   const list = data.projects
-    .filter((p) => scope === 'all' || p.entityId === scope)
+    .filter((p) => ownedBy(p.entityId, scope))
     .filter((p) => (status === 'todas' ? true : status === 'concluida' ? p.status === 'concluida' : p.status !== 'concluida'))
   return (
     <div className="page">
@@ -61,7 +61,7 @@ export function ProjectForm({ initial, onClose }: { initial: Partial<Project>; o
   const scope = data.settings.scope
   const [p, setP] = useState<Project>(() => ({
     id: uid(), name: '', kind: 'reforma', status: 'andamento', contractValue: 0, budget: 0, start: today(),
-    entityId: scope !== 'all' && data.entities.find((e) => e.id === scope)?.kind === 'empresa' ? scope : data.entities.find((e) => e.kind === 'empresa')?.id ?? '',
+    entityId: !isGroup(scope) && data.entities.find((e) => e.id === scope)?.kind === 'empresa' ? scope : data.entities.find((e) => e.kind === 'empresa')?.id ?? '',
     ...initial,
   }))
   const [floors, setFloors] = useState(3)

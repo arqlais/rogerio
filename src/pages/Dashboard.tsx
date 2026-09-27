@@ -1,21 +1,21 @@
 import { useMemo } from 'react'
-import { useStore, sampleData } from '../store'
+import { useStore } from '../store'
 import { go } from '../router'
 import type { Tx } from '../types'
-import { EntityMark, confirmDialog } from '../components/ui'
+import { EntityMark } from '../components/ui'
 import { Donut, ForecastChart, MonthBars, Ring, Sparkline } from '../components/Charts'
 import { Icon } from '../components/Icon'
 import { TxList } from '../components/TxList'
-import { KIND_LABEL, accountBalance, addDays, daysBetween, addMonth, fmtDate, moneyShort, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
+import { isGroup, ownedBy, signed, KIND_LABEL, accountBalance, addDays, daysBetween, addMonth, fmtDate, moneyShort, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
 export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
-  const { data, replaceAll } = useStore()
+  const { data, setDemo } = useStore()
   const scope = data.settings.scope
   const t = today()
   const ym = month(t)
   const ent = data.entities.find((e) => e.id === scope)
 
-  const accounts = data.accounts.filter((a) => !a.archived && (scope === 'all' || a.entityId === scope))
+  const accounts = data.accounts.filter((a) => !a.archived && ownedBy(a.entityId, scope))
   const balance = accounts.reduce((s, a) => s + accountBalance(data, a.id), 0)
   const open = data.txs.filter((x) => !x.paid && inScope(x, scope))
   const toReceive = open.filter((x) => x.kind === 'in')
@@ -27,7 +27,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
 
   const pendingDaily = useMemo(() => {
     const list = data.attendance.filter((a) => !a.txId)
-    const projectsInScope = new Set(data.projects.filter((p) => scope === 'all' || p.entityId === scope).map((p) => p.id))
+    const projectsInScope = new Set(data.projects.filter((p) => ownedBy(p.entityId, scope)).map((p) => p.id))
     return list.filter((a) => projectsInScope.has(a.projectId)).reduce((s, a) => s + a.rate * a.fraction + (a.extra ?? 0), 0)
   }, [data.attendance, data.projects, scope])
 
@@ -45,13 +45,11 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
       return hits.map((d) => ({ ...e, date: d }))
     })
     .sort((a, b) => (a.date + (a.time ?? '')).localeCompare(b.date + (b.time ?? '')))
-  const projects = data.projects.filter((p) => p.status === 'andamento' && (scope === 'all' || p.entityId === scope))
+  const projects = data.projects.filter((p) => p.status === 'andamento' && (ownedBy(p.entityId, scope)))
   const fresh = !data.txs.length && !data.projects.length && !data.people.length
 
-  const loadSample = async () => {
-    if (!(await confirmDialog('Carregar dados de exemplo? Eles substituem o que está cadastrado agora. Depois é só apagar em Ajustes → começar do zero.', 'Carregar exemplo', false))) return
-    replaceAll(sampleData())
-  }
+  const loadSample = () => setDemo(true)
+
 
   // saldo previsto: saldo de hoje + o que vence em cada dia (atrasados contam hoje)
   const forecast = useMemo(() => {
@@ -64,7 +62,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
       for (const x of open) {
         const due = x.due < t ? t : x.due
         if (due !== d) continue
-        const v = x.kind === 'in' ? x.amount : x.kind === 'out' ? -x.amount : scope === 'all' ? 0 : x.toEntityId === scope && x.entityId !== scope ? x.amount : x.entityId === scope && x.toEntityId !== scope ? -x.amount : 0
+        const v = signed(x, scope)
         if (v > 0) ins += v
         else outs -= v
       }
@@ -169,7 +167,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
           <span className="kpi-ic"><Icon name="building" /></span>
           <span className="kpi-l">Obras em andamento</span>
           <strong>{projects.length}</strong>
-          <small>{data.quotes.filter((q) => q.status === 'enviado' && (scope === 'all' || q.entityId === scope)).length} orçamento(s) esperando resposta</small>
+          <small>{data.quotes.filter((q) => q.status === 'enviado' && ownedBy(q.entityId, scope)).length} orçamento(s) esperando resposta</small>
         </button>
       </div>
 
@@ -193,7 +191,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
         </section>
       </div>
 
-      {scope === 'all' && <Compare />}
+      {isGroup(scope) && <Compare scope={scope} />}
 
       <div className="cols">
         <section className="card">
@@ -247,10 +245,10 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
 }
 
 /** Resumo lado a lado das empresas (e do pessoal) para comparar. */
-function Compare() {
+function Compare({ scope }: { scope: string }) {
   const { data, setSettings } = useStore()
   const ym = month(today())
-  const rows = [...data.entities].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || Number(a.kind === 'pessoal') - Number(b.kind === 'pessoal')).map((e) => {
+  const rows = data.entities.filter((e) => scope === 'all' || e.kind === 'empresa').sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || Number(a.kind === 'pessoal') - Number(b.kind === 'pessoal')).map((e) => {
     const bal = data.accounts.filter((a) => a.entityId === e.id && !a.archived).reduce((s, a) => s + accountBalance(data, a.id), 0)
     const open = data.txs.filter((t) => !t.paid && inScope(t, e.id))
     const rec = open.filter((t) => t.kind === 'in').reduce((s, t) => s + t.amount, 0)
@@ -264,7 +262,7 @@ function Compare() {
   })
   return (
     <section className="compare-wrap">
-      <div className="section-head"><h2>Suas empresas</h2><small className="muted">toque numa para ver só ela</small></div>
+      <div className="section-head"><h2>{scope === 'all' ? 'Por CNPJ e pessoal' : 'Por CNPJ'}</h2><small className="muted">quanto cada CNPJ movimenta · toque para filtrar</small></div>
       <div className="co-grid">
         {rows.filter((r) => r.e.favorite || r.bal || r.rec || r.pay || r.res).map((r) => (
           <button key={r.e.id} className={`co-card ${r.e.favorite ? '' : 'minor'}`} style={{ ['--c' as string]: r.e.color }} onClick={() => setSettings({ scope: r.e.id })}>
