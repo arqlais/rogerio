@@ -4,21 +4,33 @@ import type { Tx } from '../types'
 import { TxList } from '../components/TxList'
 import { TxForm } from '../components/TxForm'
 import { Badge } from '../components/ui'
+import { Icon } from '../components/Icon'
+import { Donut } from '../components/Charts'
 import { HBars, Stat, Tabs } from '../components/ui'
 import { isGroup, accountName, addDays, addMonth, downloadFile, entityName, fmtDate, inScope, isLate, money, month, monthName, personName, projectName, signed, toCSV, today } from '../utils'
 
-type Tab = 'aberto' | 'extrato' | 'notas' | 'relatorio'
+type Tab = 'aberto' | 'gastos' | 'extrato' | 'notas' | 'relatorio'
 
 export function Finance() {
   const [tab, setTab] = useState<Tab>('aberto')
+  const [tx, setTx] = useState<Partial<Tx> | null>(null)
   return (
     <div className="page">
-      <div className="page-head"><h1>Financeiro</h1></div>
-      <Tabs value={tab} onChange={setTab} items={[['aberto', 'A pagar e a receber'], ['extrato', 'Extrato do mês'], ['notas', 'Notas fiscais'], ['relatorio', 'Relatórios']]} />
+      <div className="page-head">
+        <h1>Financeiro</h1>
+        <div className="row wrap">
+          <button className="btn" onClick={() => setTx({ kind: 'transfer' })}><Icon name="swap" size={16} /> Transferência</button>
+          <button className="btn" onClick={() => setTx({ kind: 'in' })}><Icon name="arrowUp" size={16} /> Entrada</button>
+          <button className="btn primary" onClick={() => setTx({ kind: 'out' })}><Icon name="plus" size={16} /> Gasto</button>
+        </div>
+      </div>
+      <Tabs value={tab} onChange={setTab} items={[['aberto', 'A pagar e a receber'], ['gastos', 'Gastos'], ['extrato', 'Extrato do mês'], ['notas', 'Notas fiscais'], ['relatorio', 'Relatórios']]} />
       {tab === 'aberto' && <Open />}
+      {tab === 'gastos' && <Spending onNew={setTx} />}
       {tab === 'extrato' && <Statement />}
       {tab === 'notas' && <Invoices />}
       {tab === 'relatorio' && <Reports />}
+      {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}
     </div>
   )
 }
@@ -269,6 +281,68 @@ function Invoices() {
       )}
       {edit && <TxForm initial={edit} onClose={() => setEdit(null)} />}
       {newTx && <TxForm initial={{ kind: 'in', category: 'Medição de obra' }} onClose={() => setNewTx(false)} />}
+    </>
+  )
+}
+
+/** Gastos do mês: por categoria e por obra, com a lista de cada grupo. */
+function Spending({ onNew }: { onNew: (t: Partial<Tx>) => void }) {
+  const { data } = useStore()
+  const scope = data.settings.scope
+  const [ym, setYm] = useState(month(today()))
+  const [by, setBy] = useState<'categoria' | 'obra'>('categoria')
+  const [open, setOpen] = useState<string | null>(null)
+  const list = data.txs.filter((t) => t.kind === 'out' && inScope(t, scope) && month(t.paid ?? t.due) === ym)
+  const total = list.reduce((s, t) => s + t.amount, 0)
+  const paid = list.filter((t) => t.paid).reduce((s, t) => s + t.amount, 0)
+  const prev = data.txs.filter((t) => t.kind === 'out' && inScope(t, scope) && month(t.paid ?? t.due) === addMonth(ym, -1)).reduce((s, t) => s + t.amount, 0)
+  const key = (t: Tx) => (by === 'categoria' ? t.category : projectName(data, t.projectId) || 'Despesas gerais (sem obra)')
+  const groups = Object.entries(list.reduce<Record<string, Tx[]>>((acc, t) => ((acc[key(t)] ??= []).push(t), acc), {})).map(([k, v]) => [k, v, v.reduce((s, t) => s + t.amount, 0)] as const).sort((a, b) => b[2] - a[2])
+  const diff = prev ? ((total - prev) / prev) * 100 : 0
+  return (
+    <>
+      <div className="month-nav">
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+        <strong>{monthName(ym)}</strong>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+        <span style={{ flex: 1 }} />
+        <div className="seg compact">
+          <button className={by === 'categoria' ? 'on' : ''} onClick={() => setBy('categoria')}>por categoria</button>
+          <button className={by === 'obra' ? 'on' : ''} onClick={() => setBy('obra')}>por obra</button>
+        </div>
+      </div>
+      <div className="stats">
+        <Stat label="Gastos do mês" value={money(total)} sub={`${list.length} lançamento(s)`} />
+        <Stat label="Já pago" value={money(paid)} tone="good" />
+        <Stat label="Falta pagar" value={money(total - paid)} tone={total - paid ? 'warn' : undefined} />
+        <Stat label="Comparado ao mês anterior" value={prev ? `${diff > 0 ? '+' : ''}${Math.round(diff)}%` : '—'} sub={prev ? `mês anterior: ${money(prev)}` : 'sem gastos no mês anterior'} tone={diff > 10 ? 'bad' : diff < -10 ? 'good' : undefined} />
+      </div>
+      {!list.length ? (
+        <div className="empty"><strong>Nenhum gasto neste mês</strong><p>Lance materiais, combustível, aluguel de equipamento, contas da casa…</p><button className="btn primary" onClick={() => onNew({ kind: 'out' })}>+ Lançar gasto</button></div>
+      ) : (
+        <div className="cols">
+          <section className="card">
+            <div className="card-head"><h2>{by === 'categoria' ? 'Por categoria' : 'Por obra'}</h2><small className="muted">toque para ver os lançamentos</small></div>
+            <div className="spend-groups">
+              {groups.map(([k, items, sum]) => (
+                <div key={k} className={`spend-group ${open === k ? 'open' : ''}`}>
+                  <button className="spend-head" onClick={() => setOpen(open === k ? null : k)}>
+                    <span className="spend-name">{k}<small>{items.length} lançamento(s)</small></span>
+                    <span className="spend-bar"><i style={{ width: `${(sum / groups[0][2]) * 100}%` }} /></span>
+                    <b>{money(sum)}</b>
+                    <em>{Math.round((sum / total) * 100)}%</em>
+                  </button>
+                  {open === k && <TxList txs={[...items].sort((a, b) => (b.paid ?? b.due).localeCompare(a.paid ?? a.due))} scope={scope} hide={by === 'obra' ? ['project'] : []} />}
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="card">
+            <div className="card-head"><h2>Divisão</h2></div>
+            <Donut rows={groups.map(([k, , v]) => [k, v] as [string, number])} total={total} />
+          </section>
+        </div>
+      )}
     </>
   )
 }

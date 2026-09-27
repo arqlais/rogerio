@@ -6,6 +6,8 @@ import { ContractForm } from '../components/ContractForm'
 import { TxForm } from '../components/TxForm'
 import { printReceipt } from '../components/Receipt'
 import { ContractTable } from './Projects'
+import { readLogo } from './Registry'
+import { Icon } from '../components/Icon'
 import { Badge, Empty, Field, Modal, MoneyInput, NumInput, Stat, Tabs, confirmDialog, toast } from '../components/ui'
 import { ROLE_LABEL, WEEKDAYS, addDays, addMonth, fmtDate, fmtDateShort, money, month, monthName, num, projectName, today, uid, weekStart } from '../utils'
 
@@ -285,7 +287,7 @@ function People() {
       <div className="people">
         {list.map((p) => (
           <a key={p.id} className={`card person ${p.active ? '' : 'inactive'}`} href={`#/pessoa/${p.id}`}>
-            <span className="avatar">{p.name.slice(0, 1).toUpperCase()}</span>
+            {p.photo ? <img className="avatar" src={p.photo} alt="" /> : <span className="avatar">{p.name.slice(0, 1).toUpperCase()}</span>}
             <div>
               <strong>{p.name}</strong>
               <small className="muted">{ROLE_LABEL[p.role]}{p.job ? ` · ${p.job}` : ''}</small>
@@ -318,33 +320,76 @@ export function PersonForm({ initial, onClose }: { initial: Partial<Person>; onC
     }
     if (await confirmDialog(`Excluir ${p.name}?`, 'Excluir')) { remove('people', p.id); onClose(); go('/equipe/pessoas') }
   }
+  const worker = p.role === 'fixo' || p.role === 'diarista' || p.role === 'empreiteiro'
+  const photo = async (f?: File) => { if (f) try { set({ photo: await readLogo(f, 300) }) } catch { toast('Não consegui ler a foto', 'err') } }
   return (
-    <Modal title={editing ? 'Editar cadastro' : 'Nova pessoa'} onClose={onClose} footer={<>{editing && <button className="btn danger ghost" onClick={del}>Excluir</button>}<span style={{ flex: 1 }} /><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" onClick={submit}>Salvar</button></>}>
-      <div className="grid-form">
-        <Field label="Nome" span={2}><input value={p.name} onChange={(e) => set({ name: e.target.value })} autoFocus aria-label="Nome" /></Field>
-        <Field label="Tipo">
-          <select value={p.role} onChange={(e) => set({ role: e.target.value as Person['role'] })} aria-label="Tipo de pessoa">
-            {Object.entries(ROLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-        </Field>
-        <Field label="Função / ramo"><input value={p.job ?? ''} onChange={(e) => set({ job: e.target.value })} placeholder="Pedreiro, servente, eletricista, depósito…" aria-label="Função" /></Field>
-        {p.role === 'fixo' && <>
-          <Field label="Salário mensal"><MoneyInput value={p.salary ?? 0} onChange={(v) => set({ salary: v })} ariaLabel="Salário" /></Field>
-          <Field label="Encargos (% do salário)" hint="INSS + FGTS etc. Deixe 0 se não quiser calcular"><NumInput value={p.charges ?? 0} min={0} onChange={(v) => set({ charges: v })} suffix="%" ariaLabel="Encargos" /></Field>
-        </>}
-        {p.role === 'diarista' && <Field label="Valor da diária"><MoneyInput value={p.dailyRate ?? 0} onChange={(v) => set({ dailyRate: v })} ariaLabel="Diária" /></Field>}
-        {(p.role === 'fixo' || p.role === 'diarista') && (
-          <Field label="Empresa que paga">
-            <select value={p.entityId ?? ''} onChange={(e) => set({ entityId: e.target.value })} aria-label="Empresa">
-              {data.entities.filter((e) => e.kind === 'empresa').map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          </Field>
+    <Modal wide title={editing ? `Cadastro de ${p.name}` : 'Nova pessoa'} onClose={onClose} footer={<>{editing && <button className="btn danger ghost" onClick={del}>Excluir</button>}<span style={{ flex: 1 }} /><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" onClick={submit}>Salvar</button></>}>
+      <div className="person-form">
+        <div className="pf-top">
+          <label className="pf-photo">
+            {p.photo ? <img src={p.photo} alt="" /> : <Icon name="user" size={28} />}
+            <span>{p.photo ? 'trocar' : 'foto'}</span>
+            <input type="file" accept="image/*" hidden onChange={(e) => photo(e.target.files?.[0])} />
+          </label>
+          <div className="grid-form" style={{ flex: 1 }}>
+            <Field label="Como é chamado" hint="Aparece nas listas e nas diárias"><input value={p.name} onChange={(e) => set({ name: e.target.value })} placeholder="Ex.: Zé, Antônio" autoFocus aria-label="Nome" /></Field>
+            <Field label="Nome completo" hint="Vai no recibo"><input value={p.fullName ?? ''} onChange={(e) => set({ fullName: e.target.value })} aria-label="Nome completo" /></Field>
+            <Field label="Tipo">
+              <select value={p.role} onChange={(e) => set({ role: e.target.value as Person['role'] })} aria-label="Tipo de pessoa">
+                {Object.entries(ROLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </Field>
+            <Field label="Função / ramo"><input value={p.job ?? ''} onChange={(e) => set({ job: e.target.value })} placeholder="Pedreiro, servente, eletricista, depósito…" aria-label="Função" /></Field>
+          </div>
+        </div>
+
+        {worker && (
+          <fieldset className="pf-sec">
+            <legend>Trabalho e pagamento</legend>
+            <div className="grid-form">
+              {p.role === 'fixo' && <>
+                <Field label="Salário mensal"><MoneyInput value={p.salary ?? 0} onChange={(v) => set({ salary: v })} ariaLabel="Salário" /></Field>
+                <Field label="Encargos (% do salário)" hint="INSS + FGTS etc. Deixe 0 se não quiser calcular"><NumInput value={p.charges ?? 0} min={0} onChange={(v) => set({ charges: v })} suffix="%" ariaLabel="Encargos" /></Field>
+              </>}
+              {p.role === 'diarista' && <Field label="Valor da diária"><MoneyInput value={p.dailyRate ?? 0} onChange={(v) => set({ dailyRate: v })} ariaLabel="Diária" /></Field>}
+              {(p.role === 'fixo' || p.role === 'diarista') && (
+                <Field label="Empresa que paga">
+                  <select value={p.entityId ?? ''} onChange={(e) => set({ entityId: e.target.value })} aria-label="Empresa">
+                    {data.entities.filter((e) => e.kind === 'empresa').map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </Field>
+              )}
+              <Field label={p.role === 'fixo' ? 'Data de admissão' : 'Trabalha com a gente desde'}><input type="date" value={p.admission ?? ''} onChange={(e) => set({ admission: e.target.value })} aria-label="Admissão" /></Field>
+            </div>
+          </fieldset>
         )}
-        <Field label="Telefone / WhatsApp"><input value={p.phone ?? ''} onChange={(e) => set({ phone: e.target.value })} inputMode="tel" aria-label="Telefone" /></Field>
-        <Field label="CPF / CNPJ"><input value={p.doc ?? ''} onChange={(e) => set({ doc: e.target.value })} aria-label="Documento" /></Field>
-        <Field label="Chave Pix"><input value={p.pix ?? ''} onChange={(e) => set({ pix: e.target.value })} aria-label="Pix" /></Field>
-        <Field label="Situação"><select value={p.active ? '1' : '0'} onChange={(e) => set({ active: e.target.value === '1' })} aria-label="Ativo"><option value="1">Ativo</option><option value="0">Inativo</option></select></Field>
-        <Field label="Observações" span={2}><textarea rows={2} value={p.notes ?? ''} onChange={(e) => set({ notes: e.target.value })} aria-label="Observações" /></Field>
+
+        <fieldset className="pf-sec">
+          <legend>Pix e banco</legend>
+          <div className="grid-form">
+            <Field label="Tipo da chave Pix">
+              <select value={p.pixType ?? ''} onChange={(e) => set({ pixType: (e.target.value || undefined) as Person['pixType'] })} aria-label="Tipo da chave Pix">
+                <option value="">—</option><option value="cpf">CPF</option><option value="telefone">Telefone</option><option value="email">E-mail</option><option value="cnpj">CNPJ</option><option value="aleatoria">Chave aleatória</option>
+              </select>
+            </Field>
+            <Field label="Chave Pix"><input value={p.pix ?? ''} onChange={(e) => set({ pix: e.target.value })} aria-label="Pix" /></Field>
+            <Field label="Banco, agência e conta" span={2}><input value={p.bank ?? ''} onChange={(e) => set({ bank: e.target.value })} placeholder="Ex.: Caixa · ag. 1234 · conta 56789-0" aria-label="Banco" /></Field>
+          </div>
+        </fieldset>
+
+        <fieldset className="pf-sec">
+          <legend>Documentos e contato</legend>
+          <div className="grid-form">
+            <Field label="Telefone / WhatsApp"><input value={p.phone ?? ''} onChange={(e) => set({ phone: e.target.value })} inputMode="tel" placeholder="(11) 99999-9999" aria-label="Telefone" /></Field>
+            <Field label="CPF / CNPJ"><input value={p.doc ?? ''} onChange={(e) => set({ doc: e.target.value })} aria-label="Documento" /></Field>
+            <Field label="RG"><input value={p.rg ?? ''} onChange={(e) => set({ rg: e.target.value })} aria-label="RG" /></Field>
+            <Field label="Data de nascimento"><input type="date" value={p.birth ?? ''} onChange={(e) => set({ birth: e.target.value })} aria-label="Nascimento" /></Field>
+            <Field label="Endereço" span={2}><input value={p.address ?? ''} onChange={(e) => set({ address: e.target.value })} aria-label="Endereço" /></Field>
+            <Field label="Contato de emergência" span={2}><input value={p.emergency ?? ''} onChange={(e) => set({ emergency: e.target.value })} placeholder="Nome e telefone de alguém da família" aria-label="Contato de emergência" /></Field>
+            <Field label="Situação"><select value={p.active ? '1' : '0'} onChange={(e) => set({ active: e.target.value === '1' })} aria-label="Ativo"><option value="1">Ativo</option><option value="0">Inativo</option></select></Field>
+            <Field label="Observações" span={2}><textarea rows={2} value={p.notes ?? ''} onChange={(e) => set({ notes: e.target.value })} aria-label="Observações" /></Field>
+          </div>
+        </fieldset>
       </div>
     </Modal>
   )

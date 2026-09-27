@@ -15,7 +15,7 @@ export function printReceipt(d: Data, t: Tx, detail?: string) {
 <p style="font-size:14px;line-height:1.8">Recebi de <b>${esc(ent?.legalName || entityName(d, t.entityId))}</b>${ent?.doc ? `, ${doc} ${esc(ent.doc)}` : ''}, a importância de <b>${money(t.amount)}</b> (${esc(extenso(t.amount))}), referente a <b>${esc(t.description)}</b>${t.projectId ? ` na obra <b>${esc(d.projects.find((p) => p.id === t.projectId)?.name ?? '')}</b>` : ''}.</p>
 ${detail ? `<table class="info">${detail.split('\n').map((l) => `<tr><td colspan="2" style="font-weight:400">${esc(l)}</td></tr>`).join('')}</table>` : ''}
 <p style="font-size:14px">Pagamento em ${fmtDate(t.paid ?? today())}${t.method ? ` via ${esc(t.method)}` : ''}. Dou plena e geral quitação do valor acima.</p>
-<div style="margin-top:28mm;text-align:center"><div style="border-top:1px solid #111;width:90mm;margin:0 auto;padding-top:6px">${esc(person?.name ?? '')}${person?.doc ? `<br><small>CPF/CNPJ ${esc(person.doc)}</small>` : ''}</div></div>`
+<div style="margin-top:28mm;text-align:center"><div style="border-top:1px solid #111;width:90mm;margin:0 auto;padding-top:6px">${esc(person?.fullName || person?.name || '')}${person?.doc ? `<br><small>CPF/CNPJ ${esc(person.doc)}</small>` : ''}</div></div>`
   const html = letterhead(ent, body, `Recibo – ${personName(d, t.personId)}`)
   openDocument(html, `Recibo – ${personName(d, t.personId)}`)
 }

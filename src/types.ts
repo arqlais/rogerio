@@ -120,6 +120,15 @@ export interface Person {
   salary?: number // fixo: salário mensal
   charges?: number // fixo: encargos estimados (% sobre o salário)
   dailyRate?: number // diarista: valor da diária
+  fullName?: string // nome completo (o "name" é como ele é chamado na obra)
+  rg?: string
+  birth?: string
+  address?: string
+  pixType?: 'cpf' | 'telefone' | 'email' | 'aleatoria' | 'cnpj'
+  bank?: string // banco, agência e conta
+  admission?: string // data de admissão / início
+  emergency?: string // contato de emergência (nome e telefone)
+  photo?: string
   active: boolean
   notes?: string
 }
