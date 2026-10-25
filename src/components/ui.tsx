@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useEffect, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { money, moneyShort, parseMoney } from '../utils'
@@ -16,7 +17,7 @@ export function Modal({ title, onClose, children, footer, wide }: { title: strin
       <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-label={title}>
         <div className="modal-head">
           <h3>{title}</h3>
-          <button className="icon-btn" onClick={onClose} aria-label="Fechar">✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Fechar"><Icon name="x" size={16} /></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
@@ -198,4 +199,19 @@ export function EntityMark({ e, size = 22 }: { e?: Entity; size?: number }) {
   const src = e.mark ?? e.logo
   if (src) return <img className="emark" src={src} alt="" style={{ width: size, height: size }} />
   return <span className="emark ph" style={{ width: size, height: size, background: e.color, fontSize: size * 0.42 }}>{e.kind === 'pessoal' ? '●' : e.name.slice(0, 2).toUpperCase()}</span>
+}
+
+/** Cabeçalho de página no estilo das referências: frase curta, título em duas cores, explicação e ações. */
+export function PageHead({ eyebrow, title, accent, text, children, back }: { eyebrow?: ReactNode; title: ReactNode; accent?: ReactNode; text?: ReactNode; children?: ReactNode; back?: { href: string; label: string } }) {
+  return (
+    <header className="page-head ph-ref">
+      <div className="ph-l">
+        {back && <a className="back" href={back.href}><Icon name="chevronLeft" size={16} /> {back.label}</a>}
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+        <h1 className="duo">{title}{accent ? <> <em>{accent}</em></> : null}</h1>
+        {text && <p className="ph-text">{text}</p>}
+      </div>
+      {children && <div className="ph-r">{children}</div>}
+    </header>
+  )
 }

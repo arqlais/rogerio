@@ -40,6 +40,8 @@ export interface Entity {
   logo?: string // imagem (data URL) usada nos orçamentos e recibos
   mark?: string // símbolo quadrado do logo (botões e listas)
   quoteTheme?: QuoteTheme // como o papel timbrado dos orçamentos é montado (igual ao modelo da empresa)
+  quoteLogo?: boolean // padrão: mostrar o logo no topo do orçamento (false = sem logo)
+  quoteWatermark?: boolean // padrão: mostrar a marca-d'água (false = sem)
   footer?: string // imagem do rodapé do papel timbrado
   watermark?: string // marca-d'água do fundo
   tagline?: string // frase do rodapé (atividades)
@@ -212,6 +214,8 @@ export interface Quote {
   contactName?: string // pessoa responsável pela empresa
   clientId?: string // cliente/escola cadastrado
   files?: FileRef[] // orçamento assinado e carimbado, fotos
+  showLogo?: boolean // neste orçamento: logo no topo (vazio = padrão da empresa)
+  showWatermark?: boolean // neste orçamento: marca-d'água (vazio = padrão da empresa)
   number: string
   entityId: string
   client: string
@@ -299,6 +303,7 @@ export interface Settings {
   learned?: Record<string, { category: string; scope: 'empresa' | 'pessoal' }> // escolhas que o sistema aprendeu
   onboarded?: boolean // já passou pelo passo a passo do primeiro acesso
   tips?: string[] // dicas já vistas
+  ai?: { key?: string; model?: string } // assistente (Google Gemini)
 }
 
 export interface Data {

@@ -3,7 +3,7 @@ import { useStore } from '../store'
 import { go } from '../router'
 import type { Client, ClientKind } from '../types'
 import { Icon } from '../components/Icon'
-import { Empty, Field, Modal, confirmDialog, toast } from '../components/ui'
+import { Empty, Field, Modal, confirmDialog, toast, PageHead } from '../components/ui'
 import { daysBetween, money, today, uid } from '../utils'
 import { quoteTotals } from './Quotes'
 
@@ -31,13 +31,9 @@ export function Clients() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">{active} cliente{active === 1 ? '' : 's'} ativo{active === 1 ? '' : 's'}</span>
-          <h1>Clientes e escolas</h1>
-        </div>
-        <button className="btn primary" onClick={() => setEdit({ kind: 'escola' })}><Icon name="plus" size={16} /> Novo cliente</button>
-      </div>
+      <PageHead eyebrow={`${active} cliente${active === 1 ? '' : 's'} ativo${active === 1 ? '' : 's'}`} title="Clientes" accent="e escolas" text="Cadastre uma vez e escolha direto no orçamento: o nome e o CNPJ da APM entram sozinhos.">
+        <button className="pill-btn" onClick={() => setEdit({ kind: 'escola' })}><span>Novo cliente</span><i><Icon name="plus" size={18} /></i></button>
+      </PageHead>
       <div className="filters">
         <input type="search" placeholder="Buscar por nome, CNPJ, cidade, diretor…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar cliente" />
         <div className="seg compact">
@@ -57,7 +53,7 @@ export function Clients() {
                 <div key={c.id} className={`ct-row ${c.archived ? 'archived' : ''}`} onClick={() => setEdit(c)} role="button" tabIndex={0}>
                   <span className="ct-name">
                     <span className="ct-av">{c.name.replace(/^((E\.?\s?E\.?|EMEF|EMEI|Profª?|Prof\.?|Professora?)\s*)+/gi, '').slice(0, 1).toUpperCase()}</span>
-                    <span><b>{c.favorite && <span className="star-mini">★</span>}{c.name}</b><small>{[c.doc && `CNPJ ${c.doc}`, c.city].filter(Boolean).join(' · ')}</small></span>
+                    <span><b>{c.favorite && <span className="star-mini"><Icon name="star" size={13} /></span>}{c.name}</b><small>{[c.doc && `CNPJ ${c.doc}`, c.city].filter(Boolean).join(' · ')}</small></span>
                   </span>
                   <span><span className={`badge ${c.kind === 'escola' ? 'info' : 'muted'}`}>{CLIENT_KIND[c.kind]}</span></span>
                   <span className={last && daysBetween(last, today()) > 120 ? 'warn-t' : 'muted'}>{last ? (daysBetween(last, today()) === 0 ? 'hoje' : `há ${daysBetween(last, today())} dias`) : 'nenhum ainda'}{obras ? ` · ${obras} obra${obras > 1 ? 's' : ''}` : ''}</span>

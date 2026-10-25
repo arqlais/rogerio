@@ -3,7 +3,7 @@ import { useStore } from '../store'
 import type { Tx } from '../types'
 import { TxList } from '../components/TxList'
 import { TxForm } from '../components/TxForm'
-import { Badge } from '../components/ui'
+import { Badge, PageHead } from '../components/ui'
 import { Icon } from '../components/Icon'
 import { Donut } from '../components/Charts'
 import { HBars, Stat, Tabs } from '../components/ui'
@@ -20,17 +20,13 @@ export function Finance({ onNewTx }: { onNewTx?: (t: Partial<Tx>) => void }) {
   const pessoal = data.entities.find((e) => e.kind === 'pessoal')
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">dinheiro da empresa e pessoal</span>
-          <h1 className="duo">Finan<em>ceiro</em></h1>
-        </div>
+      <PageHead eyebrow="dinheiro da empresa e pessoal" title="Seu" accent="financeiro" text="O que pagar, o que receber, para onde foi o dinheiro e as notas fiscais.">
         <div className="row wrap">
           <button className="btn" onClick={() => setTx({ kind: 'transfer' })}><Icon name="swap" size={16} /> Transferir</button>
           <button className="btn" onClick={() => setTx({ kind: 'in' })}><Icon name="arrowUp" size={16} /> Entrou</button>
           <button className="btn primary" onClick={() => setTx({ kind: 'out' })}><Icon name="arrowDown" size={16} /> Saiu</button>
         </div>
-      </div>
+      </PageHead>
       <div className="view-switch" role="radiogroup" aria-label="Ver">
         <span>ver</span>
         <div className="chips">
@@ -137,9 +133,9 @@ function Statement() {
   return (
     <>
       <div className="month-nav">
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior"><Icon name="chevronLeft" size={18} /></button>
         <strong>{monthName(ym)}</strong>
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês"><Icon name="chevron" size={18} /></button>
         <span style={{ flex: 1 }} />
         <button className="btn small" onClick={exportCSV}>Exportar CSV (contador)</button>
       </div>
@@ -204,9 +200,9 @@ function Reports() {
         <div className="seg compact">
           {([['mes', 'Mês'], ['ano', 'Ano'], ['12m', '12 meses']] as const).map(([k, l]) => <button key={k} className={period === k ? 'on' : ''} onClick={() => setPeriod(k)}>{l}</button>)}
         </div>
-        <button className="icon-btn" onClick={() => setRef(addMonth(ref, period === 'mes' ? -1 : -12))} aria-label="Anterior">‹</button>
+        <button className="icon-btn" onClick={() => setRef(addMonth(ref, period === 'mes' ? -1 : -12))} aria-label="Anterior"><Icon name="chevronLeft" size={18} /></button>
         <strong>{label}</strong>
-        <button className="icon-btn" onClick={() => setRef(addMonth(ref, period === 'mes' ? 1 : 12))} aria-label="Próximo">›</button>
+        <button className="icon-btn" onClick={() => setRef(addMonth(ref, period === 'mes' ? 1 : 12))} aria-label="Próximo"><Icon name="chevron" size={18} /></button>
         <span style={{ flex: 1 }} />
         <button className="btn small" onClick={exportDRE}>Exportar CSV</button>
       </div>
@@ -263,9 +259,9 @@ function Invoices() {
           <button className={kind === 'in' ? 'on in' : 'in'} onClick={() => setKind('in')}>Emitidas (recebimentos)</button>
           <button className={kind === 'out' ? 'on out' : 'out'} onClick={() => setKind('out')}>Recebidas (compras)</button>
         </div>
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior"><Icon name="chevronLeft" size={18} /></button>
         <strong>{monthName(ym)}</strong>
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês"><Icon name="chevron" size={18} /></button>
         <span style={{ flex: 1 }} />
         {kind === 'in' && <button className="btn small primary" onClick={() => setNewTx(true)}>+ Lançar nota emitida</button>}
       </div>
@@ -318,9 +314,9 @@ function Spending({ onNew }: { onNew: (t: Partial<Tx>) => void }) {
   return (
     <>
       <div className="month-nav">
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior"><Icon name="chevronLeft" size={18} /></button>
         <strong>{monthName(ym)}</strong>
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês"><Icon name="chevron" size={18} /></button>
         <span style={{ flex: 1 }} />
         <div className="seg compact">
           <button className={by === 'categoria' ? 'on' : ''} onClick={() => setBy('categoria')}>por categoria</button>

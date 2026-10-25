@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useState } from 'react'
 import type { FileRef } from '../types'
 import { deleteFile, fileSize, fileUrl, uploadFile } from '../files'
@@ -35,7 +36,7 @@ export function Attachments({ files = [], onChange, label = 'Anexar arquivo', hi
         <div key={f.id} className="attach-item">
           <span className="attach-ic">{f.type.includes('pdf') ? 'PDF' : f.type.startsWith('image') ? 'IMG' : 'ARQ'}</span>
           <button className="attach-name" onClick={() => open(f)}>{f.name}<small>{fileSize(f.size)} · {fmtDate(f.at.slice(0, 10))}</small></button>
-          <button className="icon-btn" onClick={() => del(f)} aria-label={`Remover ${f.name}`}>✕</button>
+          <button className="icon-btn" onClick={() => del(f)} aria-label={`Remover ${f.name}`}><Icon name="x" size={16} /></button>
         </div>
       ))}
       <label className={`btn small ${busy ? 'disabled' : ''}`}>

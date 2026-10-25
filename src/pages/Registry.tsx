@@ -1,16 +1,17 @@
+import { Icon } from '../components/Icon'
 import { useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Account, Category, Entity } from '../types'
 import { EntityForm } from './Profiles'
-import { Field, Modal, MoneyInput, Tabs, confirmDialog, toast } from '../components/ui'
+import { Field, Modal, MoneyInput, Tabs, confirmDialog, toast, PageHead } from '../components/ui'
 import { accountBalance, money, today, uid } from '../utils'
 
 export function Registry({ tab }: { tab?: string }) {
   const t = tab === 'categorias' ? 'categorias' : 'empresas'
   return (
     <div className="page">
-      <div className="page-head"><h1>Cadastros</h1></div>
+      <PageHead eyebrow="CNPJs, contas e categorias" title="Empresas" accent="e contas" text="Os dados de cada empresa (logo, CNPJ, endereço, banco) aparecem nos orçamentos e recibos." />
       <Tabs value={t} onChange={(v) => go(`/cadastros/${v}`)} items={[['empresas', 'Empresas, pessoal e contas'], ['categorias', 'Categorias']]} />
       {t === 'empresas' ? <Entities /> : <Categories />}
     </div>
@@ -45,7 +46,7 @@ function Entities() {
   const [acc, setAcc] = useState<Partial<Account> | null>(null)
   return (
     <>
-      <div className="help">Marque com ★ as empresas <b>principais</b>: elas aparecem no topo; as outras ficam em "Outras…". Cada empresa (CNPJ) e o seu <b>pessoal</b> têm o próprio caixa. No topo da tela você escolhe qual quer ver — ou <b>Tudo</b>. O pró-labore e a distribuição de lucros são lançados como <b>transferência</b> da empresa para o pessoal.</div>
+      <div className="help">Marque com a estrela as empresas <b>principais</b>: elas aparecem no topo; as outras ficam em "Outras…". Cada empresa (CNPJ) e o seu <b>pessoal</b> têm o próprio caixa. No topo da tela você escolhe qual quer ver — ou <b>Tudo</b>. O pró-labore e a distribuição de lucros são lançados como <b>transferência</b> da empresa para o pessoal.</div>
       <div className="entities">
         {[...data.entities].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite)).map((e) => {
           const accounts = data.accounts.filter((a) => a.entityId === e.id)
@@ -57,7 +58,7 @@ function Entities() {
                   <div><h2>{e.name}</h2><small className="muted">{e.kind === 'pessoal' ? 'Pessoa física' : e.legalName || 'Empresa'}{e.doc ? ` · ${e.doc}` : ''}</small></div>
                 </a>
                 <div className="row">
-                  <button className={`icon-btn star ${e.favorite ? 'on' : ''}`} onClick={() => save('entities', { ...e, favorite: !e.favorite })} title={e.favorite ? 'Principal (clique para tirar)' : 'Marcar como principal'} aria-label="Principal">{e.favorite ? '★' : '☆'}</button>
+                  <button className={`icon-btn star ${e.favorite ? 'on' : ''}`} onClick={() => save('entities', { ...e, favorite: !e.favorite })} title={e.favorite ? 'Principal (clique para tirar)' : 'Marcar como principal'} aria-label="Principal"><Icon name="star" size={18} /></button>
                   <a className="btn small" href={`#/empresa/${e.id}`}>Perfil</a>
                 </div>
               </div>

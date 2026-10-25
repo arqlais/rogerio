@@ -50,7 +50,7 @@ try {
       const r = await stored()
       ok(r.settings.onboarded && r.people.length === 1 && r.projects.length === 1 && r.txs.length === 12 && r.txs.every((t) => r.entities.find((e) => e.id === t.entityId)?.kind === 'pessoal') && r.settings.mainCompany === r.entities.find((e) => e.name === 'RDL').id, `${vp.name}: passo a passo grava empresa principal, saldo, equipe, obra e contas fixas`)
       ok(r.accounts.some((a) => a.initial === 10000), `${vp.name}: saldo de hoje gravado`)
-      await page.locator('.sidebar [aria-label="Exemplo preenchido"]').click()
+      await page.locator('.hdr-me').click(); await page.locator('.me-menu [aria-label="Exemplo preenchido"]').click()
     } else {
       await page.getByRole('button', { name: 'fazer depois' }).click(); await page.waitForTimeout(200)
       ok(await page.getByText('Sua plataforma está').count() > 0, `${vp.name}: tela de boas-vindas quando está vazio`)
@@ -80,7 +80,7 @@ try {
     void rdl
 
     // lançar: separação automática
-    const openLaunch = async () => { await page.locator(desk ? '.topbar .pill-btn' : '.fab').click(); await page.waitForTimeout(150) }
+    const openLaunch = async () => { await page.locator(desk ? '.hdr-launch' : '.fab').click(); await page.waitForTimeout(150) }
     const before = (await stored()).txs.length
     await openLaunch()
     await page.getByLabel('Valor', { exact: true }).fill('1.750,00')
@@ -143,7 +143,7 @@ try {
 
     // obra incorporação com 9 aptos
     await go('#/obras')
-    await page.getByRole('button', { name: '+ Nova obra' }).click()
+    await page.getByRole('button', { name: 'Nova obra', exact: true }).click()
     await page.getByLabel('Nome da obra').fill('Prédio teste')
     await page.getByLabel('Tipo', { exact: true }).selectOption('incorporacao')
     await page.getByLabel('Preço', { exact: true }).fill('350000')
@@ -165,7 +165,7 @@ try {
 
     // orçamento de escola (PDDE) → obra
     await go('#/orcamentos')
-    await page.getByRole('button', { name: '+ Orçamento para escola (PDDE)' }).click(); await page.waitForTimeout(200)
+    await page.getByRole('button', { name: 'Orçamento para escola', exact: true }).click(); await page.waitForTimeout(200)
     await page.locator('.pick-co button', { hasText: 'Quira' }).click(); await page.waitForTimeout(300)
     const escola = await page.locator('select[aria-label="Escola cadastrada"] option').nth(1).getAttribute('value')
     await page.locator('select[aria-label="Escola cadastrada"]').selectOption(escola); await page.waitForTimeout(150)
@@ -237,11 +237,13 @@ try {
     await page.evaluate(() => (location.hash = '#/clientes')); await page.waitForTimeout(250)
     ok(await page.getByText('E.E. Prof. José Calvitti Filho').count() > 0, `${vp.name}: escolas já cadastradas em Clientes`)
     await shot('clientes')
-    if (vp.width < 800) { await page.locator('.bottomnav button').last().click(); await page.waitForTimeout(150) }
-    await page.locator(vp.width < 800 ? '.sheet [aria-label="Modo escuro"]' : '.sidebar [aria-label="Modo escuro"]').click(); await page.waitForTimeout(250)
+    const openMe = async () => { if (vp.width < 800) await page.locator('.bottomnav button').last().click(); else await page.locator('.hdr-me').click(); await page.waitForTimeout(150) }
+    await openMe()
+    await page.locator('[aria-label="Modo escuro"]:visible').click(); await page.waitForTimeout(250)
     ok(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', `${vp.name}: modo escuro`)
     await shot('escuro')
-    await page.locator(vp.width < 800 ? '.sheet [aria-label="Exemplo preenchido"]' : '.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
+    await openMe()
+    await page.locator('[aria-label="Exemplo preenchido"]:visible').click(); await page.waitForTimeout(250)
     await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
     ok(await page.evaluate(() => localStorage.getItem('rogerio-gestao-exemplo-ligado')) !== '1' && await page.locator('.demo-bar').count() === 0, `${vp.name}: olho volta para os dados reais`)
     ok(errors.length === 0, `${vp.name}: nenhum erro de página ${errors.join(' | ')}`)

@@ -31,7 +31,7 @@ export function PersonDetail({ id }: { id: string }) {
   const wa = p.phone?.replace(/\D/g, '')
   return (
     <div className="page">
-      <a className="back" href="#/equipe/pessoas">‹ Pessoas</a>
+      <a className="back" href="#/equipe/pessoas"><Icon name="chevronLeft" size={16} /> Pessoas</a>
       <section className="card person-hero">
         {p.photo ? <img className="ph-photo" src={p.photo} alt="" /> : <span className="ph-photo ph">{p.name.slice(0, 1).toUpperCase()}</span>}
         <div className="ph-id">

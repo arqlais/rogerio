@@ -4,7 +4,7 @@ import { go } from '../router'
 import type { PriceInput, PriceService, Pricing, QuoteItem } from '../types'
 import { bdiOf, inputCost, M2_KIND, serviceCost } from '../pricing'
 import { Icon } from '../components/Icon'
-import { Empty, Field, Modal, MoneyInput, NumInput, Tabs, confirmDialog, toast } from '../components/ui'
+import { Empty, Field, Modal, MoneyInput, NumInput, Tabs, confirmDialog, toast, PageHead } from '../components/ui'
 import { money, uid } from '../utils'
 import { buildQuote, CompanyPicker } from './Quotes'
 
@@ -29,12 +29,7 @@ export function PricingPage({ tab = 'calculo' }: { tab?: string }) {
   const bdi = bdiOf(p)
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">BDI atual {pct(bdi)} · {p.services.length} serviços · {p.inputs.length} insumos</span>
-          <h1>Tabela de preços</h1>
-        </div>
-      </div>
+      <PageHead eyebrow={`BDI atual ${pct(bdi)} · ${p.services.length} serviços · ${p.inputs.length} insumos`} title="Tabela" accent="de preços" text="Calcule o preço de cada serviço com material, mão de obra e BDI, e transforme em orçamento." />
       <Tabs value={t} onChange={(v) => go(`/precos/${v}`)} items={[['calculo', 'Calcular obra'], ['servicos', 'Serviços', p.services.length], ['insumos', 'Materiais e diárias'], ['bdi', 'BDI e encargos'], ['m2', 'Estimativa por m²']]} />
       {t === 'calculo' && <Calc />}
       {t === 'servicos' && <Services />}
@@ -101,7 +96,7 @@ function Calc() {
                   <NumInput value={l.qty} step={0.01} min={0} suffix={s?.unit} onChange={(v) => setC({ lines: c.lines.map((x) => (x.id === l.id ? { ...x, qty: v } : x)) })} ariaLabel="Quantidade" />
                   <span className="r muted">{money(unitPrice)}</span>
                   <b className="r">{money(unitPrice * l.qty)}</b>
-                  <button className="icon-btn" onClick={() => setC({ lines: c.lines.filter((x) => x.id !== l.id) })} aria-label="Remover serviço">✕</button>
+                  <button className="icon-btn" onClick={() => setC({ lines: c.lines.filter((x) => x.id !== l.id) })} aria-label="Remover serviço"><Icon name="x" size={16} /></button>
                 </div>
               ))}
             </div>
@@ -115,7 +110,7 @@ function Calc() {
               <div key={e.id} className="pr-row">
                 <input value={e.name} onChange={(ev) => setC({ extras: c.extras.map((x) => (x.id === e.id ? { ...x, name: ev.target.value } : x)) })} aria-label="Descrição do custo" />
                 <MoneyInput value={e.value} onChange={(v) => setC({ extras: c.extras.map((x) => (x.id === e.id ? { ...x, value: v } : x)) })} ariaLabel="Valor do custo" />
-                <button className="icon-btn" onClick={() => setC({ extras: c.extras.filter((x) => x.id !== e.id) })} aria-label="Remover custo">✕</button>
+                <button className="icon-btn" onClick={() => setC({ extras: c.extras.filter((x) => x.id !== e.id) })} aria-label="Remover custo"><Icon name="x" size={16} /></button>
               </div>
             ))}
           </div>
@@ -245,7 +240,7 @@ function ServiceForm({ initial, onClose }: { initial: PriceService; onClose: () 
               <NumInput value={it.coef} step={0.001} min={0} suffix={inp?.unit} onChange={(v) => set({ items: s.items.map((x, j) => (j === ix ? { ...x, coef: v } : x)) })} ariaLabel="Quantidade por unidade" />
               <span className="r muted">{money(inputCost(p, inp))}{inp ? `/${inp.unit}` : ''}</span>
               <b className="r">{money(inputCost(p, inp) * it.coef)}</b>
-              <button className="icon-btn" onClick={() => set({ items: s.items.filter((_, j) => j !== ix) })} aria-label="Remover insumo">✕</button>
+              <button className="icon-btn" onClick={() => set({ items: s.items.filter((_, j) => j !== ix) })} aria-label="Remover insumo"><Icon name="x" size={16} /></button>
             </div>
           )
         })}
@@ -290,7 +285,7 @@ function Inputs() {
                 <input value={i.name} onChange={(e) => setI(i.id, { name: e.target.value })} placeholder="Nome do material" aria-label="Material" />
                 <input value={i.unit} onChange={(e) => setI(i.id, { unit: e.target.value })} aria-label="Unidade" />
                 <MoneyInput value={i.price} onChange={(v) => setI(i.id, { price: v })} ariaLabel={`Preço ${i.name}`} />
-                <button className="icon-btn" onClick={() => del(i)} aria-label={`Apagar ${i.name}`}>✕</button>
+                <button className="icon-btn" onClick={() => del(i)} aria-label={`Apagar ${i.name}`}><Icon name="x" size={16} /></button>
               </div>
             ))}
           </div>
@@ -305,7 +300,7 @@ function Inputs() {
                 <input value={i.name} onChange={(e) => setI(i.id, { name: e.target.value })} placeholder="Profissão" aria-label="Profissional" />
                 <MoneyInput value={i.price} onChange={(v) => setI(i.id, { price: v })} ariaLabel={`Diária ${i.name}`} />
                 <b className="r">{money(inputCost(p, i))}</b>
-                <button className="icon-btn" onClick={() => del(i)} aria-label={`Apagar ${i.name}`}>✕</button>
+                <button className="icon-btn" onClick={() => del(i)} aria-label={`Apagar ${i.name}`}><Icon name="x" size={16} /></button>
               </div>
             ))}
           </div>
