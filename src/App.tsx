@@ -4,7 +4,7 @@ import { CLOUD, supabase } from './cloud'
 import { ARTIFACT } from './env'
 import { confirmDialog, toast } from './components/ui'
 import { StoreProvider, useStore } from './store'
-import { go, useRoute } from './router'
+import { useRoute } from './router'
 import { TxForm } from './components/TxForm'
 import { Icon } from './components/Icon'
 import { LayoutCtx, type Layout } from './layout'
@@ -22,6 +22,8 @@ import { Quotes } from './pages/Quotes'
 import { Agenda } from './pages/Agenda'
 import { Clients } from './pages/Clients'
 import { PricingPage } from './pages/Pricing'
+import { ImportPage } from './pages/Import'
+import { Onboarding } from './pages/Onboarding'
 
 const NAV: [string, string, string][] = [
   ['', 'Início', 'home'],
@@ -41,8 +43,8 @@ const GROUPS: [string, string[]][] = [
   ['obras e pessoas', ['obras', 'equipe', 'clientes']],
   ['cadastros', ['cadastros', 'config']],
 ]
-// no celular: 4 atalhos + "Mais"
-const MOBILE = ['', 'financeiro', 'obras', 'equipe']
+// no celular: 2 atalhos + botão Lançar + 2 atalhos + "Mais"
+const MOBILE = ['', 'financeiro', 'obras', 'agenda']
 
 export default function App() {
   return (
@@ -57,22 +59,19 @@ function Shell() {
   const { data, setSettings, sync, savedAt, userEmail, demo, setDemo } = useStore()
   const [theme, setTheme] = useTheme()
   const [tx, setTx] = useState<Partial<Tx> | null>(null)
-  const [menu, setMenu] = useState(false)
   const [more, setMore] = useState(false)
   const layout: Layout = 'classico'
   const setLayout = () => {}
+  // o filtro Empresa/Pessoal agora fica só dentro do Financeiro; aqui só garante um valor válido
   const scope = data.settings.scope
-  // as empresas ficam sempre juntas: um CNPJ sozinho no topo volta para "Empresa"
-  const companyScope = data.entities.some((e) => e.id === scope && e.kind === 'empresa')
-  const validScope = scope === 'all' || scope === 'empresa' || data.entities.some((e) => e.id === scope)
-  useEffect(() => { if (!validScope || companyScope) setSettings({ scope: 'empresa' }) }, [validScope, companyScope, setSettings])
-  const pessoal = data.entities.find((e) => e.kind === 'pessoal')
-  const inEmpresa = scope === 'empresa' || companyScope
+  const validScope = scope === 'all' || scope === 'empresa' || data.entities.some((e) => e.id === scope && e.kind === 'pessoal')
+  useEffect(() => { if (!validScope) setSettings({ scope: 'all' }) }, [validScope, setSettings])
   const toggleDemo = () => { setDemo(!demo); toast(demo ? 'Voltou para os seus dados' : 'Mostrando o exemplo preenchido — seus dados continuam guardados') }
   const tools = (
     <div className="side-tools">
       <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'} aria-label={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
       <button className={`icon-btn ${demo ? 'on' : ''}`} onClick={toggleDemo} title={demo ? 'Esconder o exemplo (voltar aos meus dados)' : 'Ver exemplo preenchido'} aria-label="Exemplo preenchido"><Icon name={demo ? 'eye' : 'eyeOff'} /></button>
+      <button className="icon-btn" onClick={() => { setMore(false); setSettings({ onboarded: false }) }} title="Passo a passo" aria-label="Passo a passo"><Icon name="help" /></button>
       <span style={{ flex: 1 }} />
       {CLOUD && <button className="icon-btn" onClick={async () => { if (await confirmDialog('Sair da conta neste aparelho?', 'Sair', false)) signOut() }} title="Sair" aria-label="Sair"><Icon name="logout" /></button>}
     </div>
@@ -80,7 +79,7 @@ function Shell() {
 
   const page = route[0] ?? ''
   let content: ReactNode
-  if (page === 'financeiro') content = <Finance />
+  if (page === 'financeiro') content = <Finance onNewTx={setTx} />
   else if (page === 'obras' && route[1]) content = <ProjectDetail id={route[1]} />
   else if (page === 'obras') content = <Projects />
   else if (page === 'equipe') content = <Team tab={route[1]} />
@@ -93,38 +92,13 @@ function Shell() {
   else if (page === 'agenda') content = <Agenda />
   else if (page === 'clientes') content = <Clients />
   else if (page === 'precos') content = <PricingPage tab={route[1]} />
+  else if (page === 'importar') content = <ImportPage />
   else content = <Dashboard onNewTx={setTx} />
 
-  const newTx = (kind: Tx['kind']) => { setMenu(false); setTx({ kind }) }
-
-  const isOn = (k: string) => page === k || (k === 'equipe' && page === 'pessoa') || (k === 'cadastros' && page === 'empresa') || (k === 'config' && page === 'perfil')
+  const isOn = (k: string) => page === k || (k === 'equipe' && page === 'pessoa') || (k === 'cadastros' && page === 'empresa') || (k === 'config' && (page === 'perfil' || page === 'importar'))
   const syncText = sync === 'local' ? 'salvo neste aparelho' : sync === 'salvando' ? 'salvando…' : sync === 'erro' ? 'erro ao salvar na nuvem' : `salvo na nuvem${savedAt ? ` · ${savedAt}` : ''}`
-  const scopeSeg = (
-    <div className="scope" role="radiogroup" aria-label="Ver finanças de">
-      <div className="scope-seg">
-        <button className={inEmpresa ? 'on' : ''} onClick={() => setSettings({ scope: 'empresa' })}>Empresa</button>
-        {pessoal && <button className={scope === pessoal.id ? 'on' : ''} onClick={() => setSettings({ scope: pessoal.id })}>Pessoal</button>}
-        <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
-      </div>
-    </div>
-  )
   const launcher = (
-    <div className="new-wrap">
-      <button className="btn primary" onClick={() => setMenu((m) => !m)} aria-haspopup="menu"><Icon name="plus" size={18} /> Lançar</button>
-      {menu && (
-        <>
-          <div className="menu-backdrop" onClick={() => setMenu(false)} />
-          <div className="menu" role="menu">
-            <button onClick={() => newTx('out')}><span className="mi out"><Icon name="arrowDown" size={18} /></span>Saída / conta a pagar</button>
-            <button onClick={() => newTx('in')}><span className="mi in"><Icon name="arrowUp" size={18} /></span>Entrada / a receber</button>
-            <button onClick={() => newTx('transfer')}><span className="mi"><Icon name="swap" size={18} /></span>Transferência / pró-labore</button>
-            <button onClick={() => { setMenu(false); go('/equipe/diarias') }}><span className="mi"><Icon name="hardhat" size={18} /></span>Apontar diárias</button>
-            <button onClick={() => { setMenu(false); go('/agenda') }}><span className="mi"><Icon name="calendar" size={18} /></span>Compromisso na agenda</button>
-            <button onClick={() => { setMenu(false); go('/orcamentos') }}><span className="mi"><Icon name="file" size={18} /></span>Orçamento</button>
-          </div>
-        </>
-      )}
-    </div>
+    <button className="pill-btn" onClick={() => setTx({ kind: 'out' })}><span>Lançar</span><i><Icon name="plus" size={18} /></i></button>
   )
   const bars = (
     <>
@@ -132,15 +106,18 @@ function Shell() {
       {demo && <div className="demo-bar"><Icon name="eye" size={16} /> Você está vendo um <b>exemplo preenchido</b>. Seus dados continuam guardados. <button className="link" onClick={toggleDemo}>voltar para os meus dados</button></div>}
     </>
   )
+  const navLink = ([k, l, i]: [string, string, string]) => (
+    <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''} onClick={() => setMore(false)}>
+      <span className="nav-i"><Icon name={i} /></span>
+      <small>{l}</small>
+    </a>
+  )
   const mobile = (
     <>
       <nav className="bottomnav">
-        {NAV.filter(([k]) => MOBILE.includes(k)).map(([k, l, i]) => (
-          <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''} onClick={() => setMore(false)}>
-            <span className="nav-i"><Icon name={i} /></span>
-            <small>{l}</small>
-          </a>
-        ))}
+        {NAV.filter(([k]) => MOBILE.slice(0, 2).includes(k)).map(navLink)}
+        <button className="fab" onClick={() => setTx({ kind: 'out' })} aria-label="Lançar"><Icon name="plus" size={26} /></button>
+        {NAV.filter(([k]) => MOBILE.slice(2).includes(k)).map(navLink)}
         <button className={!MOBILE.includes(page) && page !== 'pessoa' ? 'on' : ''} onClick={() => setMore((m) => !m)}>
           <span className="nav-i"><Icon name="more" /></span>
           <small>Mais</small>
@@ -157,11 +134,11 @@ function Shell() {
           </div>
         </>
       )}
-      {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}
     </>
   )
   const name = shortName(data.settings.profile?.fullName) || data.settings.owner || 'Gestão'
   const ini = initials(data.settings.profile?.fullName || data.settings.owner || 'RV')
+  const longDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <LayoutCtx.Provider value={{ layout, setLayout }}>
@@ -199,13 +176,15 @@ function Shell() {
 
       <div className="main">
         <header className="topbar">
-          {scopeSeg}
+          <div className="topbar-l"><span className="brand-mark sm">{ini}</span><span className="topbar-date">{longDate}</span></div>
           {launcher}
         </header>
         {bars}
         <main className="content">{content}</main>
       </div>
       {mobile}
+      {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}
+      {!data.settings.onboarded && !demo && <Onboarding onClose={() => setSettings({ onboarded: true })} />}
     </div>
     </LayoutCtx.Provider>
   )

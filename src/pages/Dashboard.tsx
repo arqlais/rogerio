@@ -1,35 +1,37 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
-import type { Tx } from '../types'
+import type { CalEvent, Tx } from '../types'
 import { EntityMark } from '../components/ui'
 import { Donut, ForecastChart, MonthBars, Ring } from '../components/Charts'
 import { Icon } from '../components/Icon'
 import { TxList } from '../components/TxList'
-import { isGroup, ownedBy, signed, accountBalance, addDays, daysBetween, addMonth, fmtDate, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
+import { ownedBy, signed, accountBalance, addDays, daysBetween, addMonth, fmtDate, inScope, isLate, money, month, monthName, monthShort, monthSummary, projectStats, today } from '../utils'
 
+const EV_TONE: Record<string, string> = { visita: 'orange', reuniao: 'navy', entrega: 'green', pessoal: 'purple', compromisso: 'navy', outro: 'navy', conta: 'red', receber: 'green' }
+
+/** Início: o que importa hoje. Usa tudo (empresa + pessoal) e mostra a divisão sozinho. */
 export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
-  const { data, setDemo } = useStore()
-  const scope = data.settings.scope
+  const { data, setDemo, setSettings } = useStore()
+  const scope = 'all'
   const t = today()
   const ym = month(t)
-  const ent = data.entities.find((e) => e.id === scope)
+  const pessoal = data.entities.find((e) => e.kind === 'pessoal')
 
-  const accounts = data.accounts.filter((a) => !a.archived && ownedBy(a.entityId, scope))
-  const balance = accounts.reduce((s, a) => s + accountBalance(data, a.id), 0)
+  const bal = (sc: string) => data.accounts.filter((a) => !a.archived && ownedBy(a.entityId, sc)).reduce((s, a) => s + accountBalance(data, a.id), 0)
+  const balance = bal('all')
+  const balEmp = bal('empresa')
+  const balPes = pessoal ? bal(pessoal.id) : 0
   const open = data.txs.filter((x) => !x.paid && inScope(x, scope))
   const toReceive = open.filter((x) => x.kind === 'in')
   const toPay = open.filter((x) => x.kind === 'out')
   const late = open.filter((x) => isLate(x) && x.kind !== 'transfer')
   const sum = (l: Tx[]) => l.reduce((s, x) => s + x.amount, 0)
-  const m = monthSummary(data, ym, scope)
+  const mEmp = monthSummary(data, ym, 'empresa')
+  const mPes = pessoal ? monthSummary(data, ym, pessoal.id) : null
   const upcoming = open.filter((x) => x.due <= addDays(t, 15)).sort((a, b) => a.due.localeCompare(b.due))
 
-  const pendingDaily = useMemo(() => {
-    const list = data.attendance.filter((a) => !a.txId)
-    const projectsInScope = new Set(data.projects.filter((p) => ownedBy(p.entityId, scope)).map((p) => p.id))
-    return list.filter((a) => projectsInScope.has(a.projectId)).reduce((s, a) => s + a.rate * a.fraction + (a.extra ?? 0), 0)
-  }, [data.attendance, data.projects, scope])
+  const pendingDaily = useMemo(() => data.attendance.filter((a) => !a.txId).reduce((s, a) => s + a.rate * a.fraction + (a.extra ?? 0), 0), [data.attendance])
 
   const chart = Array.from({ length: 6 }, (_, i) => {
     const k = addMonth(ym, i - 5)
@@ -37,26 +39,27 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
     return { label: monthShort(k), a: s.inPaid + s.transfersIn, b: s.outPaid + s.transfersOut }
   })
 
-  const tomorrow = addDays(t, 1)
-  const agenda = data.events
-    .flatMap((e) => {
-      if (e.done) return []
-      const hits = [t, tomorrow].filter((d) => d === e.date || (d > e.date && (e.repeat === 'semanal' ? daysBetween(e.date, d) % 7 === 0 : e.repeat === 'mensal' ? d.slice(8) === e.date.slice(8) : false)))
-      return hits.map((d) => ({ ...e, date: d }))
-    })
-    .sort((a, b) => (a.date + (a.time ?? '')).localeCompare(b.date + (b.time ?? '')))
-  const projects = data.projects.filter((p) => p.status === 'andamento' && (ownedBy(p.entityId, scope)))
+  // agenda dos próximos 7 dias: compromissos + contas que vencem (no estilo de cronograma)
+  const days = Array.from({ length: 7 }, (_, i) => addDays(t, i))
+  const occurs = (e: CalEvent, d: string) => d === e.date || (d > e.date && (e.repeat === 'semanal' ? daysBetween(e.date, d) % 7 === 0 : e.repeat === 'mensal' ? d.slice(8) === e.date.slice(8) : false))
+  const timeline = days.map((d) => ({
+    d,
+    items: [
+      ...data.events.filter((e) => !e.done && occurs(e, d)).map((e) => ({ id: e.id, title: e.title, time: e.time, sub: e.place || data.projects.find((p) => p.id === e.projectId)?.name, tone: EV_TONE[e.kind] ?? 'navy', go: () => go('/agenda') })),
+      ...open.filter((x) => (d === t ? x.due <= t : x.due === d) && x.kind !== 'transfer').map((x) => ({ id: x.id, title: x.description, time: undefined, sub: `${x.kind === 'in' ? 'receber' : 'pagar'} ${money(x.amount)}${x.due < t ? ' · vencido' : ''}`, tone: x.kind === 'in' ? 'green' : x.due < t ? 'red' : 'orange', go: () => go('/financeiro') })),
+    ].sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99')),
+  }))
+  const [day, setDay] = useState(t)
+  const dayItems = timeline.find((x) => x.d === day)?.items ?? []
+
+  const projects = data.projects.filter((p) => p.status === 'andamento')
   const fresh = !data.txs.length && !data.projects.length && !data.people.length
-
-  const loadSample = () => setDemo(true)
-
 
   // saldo previsto: saldo de hoje + o que vence em cada dia (atrasados contam hoje)
   const forecast = useMemo(() => {
-    const days = 45
     const pts: { date: string; value: number; ins: number; outs: number }[] = []
-    let bal = balance
-    for (let i = 0; i <= days; i++) {
+    let b = balance
+    for (let i = 0; i <= 45; i++) {
       const d = addDays(t, i)
       let ins = 0, outs = 0
       for (const x of open) {
@@ -66,33 +69,43 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
         if (v > 0) ins += v
         else outs -= v
       }
-      bal += ins - outs
-      pts.push({ date: d, value: bal, ins, outs })
+      b += ins - outs
+      pts.push({ date: d, value: b, ins, outs })
     }
     return pts
-  }, [open, balance, t, scope])
+  }, [open, balance, t])
   const endBal = forecast[forecast.length - 1]?.value ?? balance
   const lowest = forecast.reduce((m, p) => (p.value < m.value ? p : m), forecast[0] ?? { value: balance, date: t })
 
-  // gastos do mês por categoria
   const spend = useMemo(() => {
     const by: Record<string, number> = {}
-    for (const x of data.txs) if (x.kind === 'out' && inScope(x, scope) && month(x.paid ?? x.due) === ym) by[x.category] = (by[x.category] ?? 0) + x.amount
+    for (const x of data.txs) if (x.kind === 'out' && month(x.paid ?? x.due) === ym) by[x.category] = (by[x.category] ?? 0) + x.amount
     const rows = Object.entries(by).sort((a, b) => b[1] - a[1])
     return { rows, total: rows.reduce((s, r) => s + r[1], 0) }
-  }, [data.txs, scope, ym])
+  }, [data.txs, ym])
   const hour = new Date().getHours()
   const hello = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
-  const longDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
   const weekEnd = addDays(t, 7)
   const payWeek = toPay.filter((x) => x.due <= weekEnd)
   const recWeek = toReceive.filter((x) => x.due <= weekEnd)
-  const weekLine = [
-    payWeek.length ? `${payWeek.length} conta${payWeek.length > 1 ? 's' : ''} para pagar esta semana (${money(sum(payWeek))})` : 'nenhuma conta para pagar esta semana',
-    recWeek.length ? `${money(sum(recWeek))} a receber` : '',
-  ].filter(Boolean).join(' · ')
+  const todayEvents = timeline[0].items.filter((i) => i.time !== undefined || !i.sub?.includes('pagar')).length
   const lateOut = late.filter((x) => x.kind === 'out')
   const lateIn = late.filter((x) => x.kind === 'in')
+
+  // "precisa da sua atenção": tarefas que o sistema encontra sozinho
+  const todo: { icon: string; tone: 'bad' | 'warn' | 'info'; title: string; sub: string; action: string; go: () => void }[] = []
+  if (lateOut.length) todo.push({ icon: 'alert', tone: 'bad', title: `${lateOut.length} conta${lateOut.length > 1 ? 's' : ''} vencida${lateOut.length > 1 ? 's' : ''}`, sub: `${money(sum(lateOut))} para pagar`, action: 'ver contas', go: () => go('/financeiro') })
+  if (lateIn.length) todo.push({ icon: 'wallet', tone: 'warn', title: `Cobrar ${money(sum(lateIn))}`, sub: `${lateIn.length} recebimento${lateIn.length > 1 ? 's' : ''} atrasado${lateIn.length > 1 ? 's' : ''}`, action: 'ver quem deve', go: () => go('/financeiro') })
+  if (pendingDaily > 0) todo.push({ icon: 'hardhat', tone: 'info', title: 'Acertar diárias', sub: `${money(pendingDaily)} com os diaristas`, action: 'abrir diárias', go: () => go('/equipe/diarias') })
+  const oldQuotes = data.quotes.filter((q) => q.status === 'enviado' && daysBetween(q.date, t) >= 7)
+  if (oldQuotes.length) todo.push({ icon: 'file', tone: 'info', title: `${oldQuotes.length} orçamento${oldQuotes.length > 1 ? 's' : ''} sem resposta`, sub: 'enviados há mais de 7 dias', action: 'ver orçamentos', go: () => go('/orcamentos') })
+  for (const p of projects) {
+    const st = projectStats(data, p.id)
+    if (p.budget && st.budgetUse >= 90) todo.push({ icon: 'building', tone: st.budgetUse > 100 ? 'bad' : 'warn', title: `${p.name}: ${Math.round(st.budgetUse)}% do previsto`, sub: `gasto ${money(st.cost)} de ${money(p.budget)}`, action: 'ver obra', go: () => go(`/obras/${p.id}`) })
+  }
+  const lastYm = addMonth(ym, -1)
+  const unpaid = data.people.filter((p) => p.role === 'fixo' && p.active && (p.salary ?? 0) > 0).filter((p) => !data.txs.some((x) => x.group === `folha-${lastYm}-${p.id}`))
+  if (unpaid.length) todo.push({ icon: 'users', tone: 'info', title: `Salários de ${monthName(lastYm).split(' ')[0]}`, sub: `${unpaid.length} funcionário${unpaid.length > 1 ? 's' : ''} sem salário lançado`, action: 'lançar salários', go: () => go('/equipe/folha') })
 
   const [view, setView] = useState<'saldo' | 'meses' | 'gastos' | 'cnpj'>('saldo')
   const actions: [string, string, string, () => void][] = [
@@ -103,60 +116,130 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
     ['calendar', 'Compromisso', 'visita, reunião', () => go('/agenda')],
     ['building', 'Nova obra', 'ou ver as obras', () => go('/obras')],
   ]
+  const owner = data.settings.owner || 'Rogério'
+  const viewFin = (sc: string) => { setSettings({ scope: sc }); go('/financeiro') }
+  const maxSplit = Math.max(1, mEmp.inAll, mEmp.outAll, mPes?.inAll ?? 0, mPes?.outAll ?? 0)
+
   return (
-    <div className="page">
-      <header className="dash-head">
-        <span className="eyebrow">{longDate}{ent ? ` · ${ent.name}` : scope === 'empresa' ? ' · empresa' : scope === 'all' ? ' · tudo' : ''}</span>
-        <h1 className="dash-title"><span className="hello">{hello.toLowerCase()},</span> {(data.settings.owner || 'Rogério').toLowerCase()}</h1>
-        <p className="dash-sub">{weekLine}</p>
-        {ent && ent.kind === 'empresa' && (
-          <a className="ent-chip" href={`#/empresa/${ent.id}`}><EntityMark e={ent} size={18} /><b>{ent.name}</b><span>{ent.legalName}</span>{ent.doc && <span>CNPJ {ent.doc}</span>}</a>
-        )}
-      </header>
+    <div className="page home">
+      <section className="hero">
+        <div className="hero-in">
+          <div className="hero-text">
+            <span className="eyebrow light">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            <h1 className="hero-title">{hello},<br /><em>{owner}</em></h1>
+            <div className="hero-chips">
+              <span><Icon name="calendar" size={15} /> {todayEvents ? `${todayEvents} compromisso${todayEvents > 1 ? 's' : ''} hoje` : 'agenda livre hoje'}</span>
+              <span><Icon name="arrowDown" size={15} /> {payWeek.length ? `${payWeek.length} conta${payWeek.length > 1 ? 's' : ''} na semana · ${money(sum(payWeek))}` : 'nada pra pagar na semana'}</span>
+              {recWeek.length > 0 && <span><Icon name="arrowUp" size={15} /> {money(sum(recWeek))} a receber</span>}
+              {late.length > 0 && <span className="bad"><Icon name="alert" size={15} /> {late.length} atrasado{late.length > 1 ? 's' : ''}</span>}
+            </div>
+          </div>
+          <div className="hero-stats">
+            <button onClick={() => viewFin('empresa')}><strong className={balEmp < 0 ? 'neg' : ''}>{money(balEmp)}</strong><span>saldo da empresa</span></button>
+            <button onClick={() => pessoal && viewFin(pessoal.id)}><strong>{money(mPes?.outPaid ?? 0)}</strong><span>gastos pessoais em {monthName(ym).split(' ')[0]}</span></button>
+            <button onClick={() => go('/financeiro')}><strong>{money(sum(toReceive))}</strong><span>a receber</span></button>
+          </div>
+        </div>
+      </section>
 
       {fresh && (
         <div className="card welcome">
-          <h2>Vamos começar</h2>
-          <ol>
-            <li><a href="#/cadastros/empresas">Confira os CNPJs e as contas bancárias</a> e coloque o saldo de hoje.</li>
-            <li><a href="#/obras">Cadastre as obras</a> — para o prédio, escolha "Incorporação" e gere os 9 apartamentos.</li>
-            <li><a href="#/equipe/pessoas">Cadastre a equipe</a>: fixos, diaristas e empreiteiros.</li>
-            <li>Lance as contas a pagar e a receber no botão <b>Lançar</b>, no alto da tela.</li>
-          </ol>
-          <button className="btn" onClick={loadSample}>Ver a plataforma com dados de exemplo</button>
+          <span className="eyebrow">começando</span>
+          <h2 className="duo">Sua plataforma está <em>vazia</em></h2>
+          <p>O passo a passo deixa tudo pronto em poucos minutos: empresas, saldo, equipe, obras e contas do mês. Se você anota em planilha, dá para importar.</p>
+          <div className="row wrap">
+            <button className="pill-btn" onClick={() => setSettings({ onboarded: false })}><span>Abrir o passo a passo</span><i><Icon name="chevron" size={18} /></i></button>
+            <a className="btn" href="#/importar"><Icon name="upload" size={16} /> Importar planilha</a>
+            <button className="btn ghost" onClick={() => setDemo(true)}>Ver um exemplo preenchido</button>
+          </div>
         </div>
       )}
 
       <section className="cmd">
-            <h2 className="cmd-title">o que você quer fazer?</h2>
-            <div className="cmd-grid">
-              {actions.map(([ic, l, sub, fn], i) => (
-                <button key={l} className={`cmd-btn c${i}`} onClick={fn}><span className="cmd-ic"><Icon name={ic} size={22} /></span><b>{l}</b><small>{sub}</small></button>
+        <h2 className="sec-title"><i />o que você quer fazer?</h2>
+        <div className="cmd-grid">
+          {actions.map(([ic, l, sub, fn], i) => (
+            <button key={l} className={`cmd-btn c${i}`} onClick={fn}><span className="cmd-ic"><Icon name={ic} size={22} /></span><b>{l}</b><small>{sub}</small></button>
+          ))}
+        </div>
+      </section>
+
+      <div className="home-grid">
+        <section className="card sched">
+          <div className="card-head">
+            <div><span className="eyebrow">próximos dias</span><h2 className="duo">Sua <em>agenda</em></h2></div>
+            <a className="pill-btn sm" href="#/agenda"><span>abrir</span><i><Icon name="chevron" size={16} /></i></a>
+          </div>
+          <div className="sched-body">
+            <div className="sched-days" role="tablist" aria-label="Dias">
+              {timeline.map(({ d, items }) => (
+                <button key={d} role="tab" aria-selected={d === day} className={d === day ? 'on' : ''} onClick={() => setDay(d)}>
+                  <b>{d.slice(8)}</b><small>{d === t ? 'hoje' : new Date(d + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</small>
+                  {items.length > 0 && <i />}
+                </button>
               ))}
             </div>
-          </section>
+            <div className="sched-list">
+              {dayItems.length ? dayItems.map((it) => (
+                <button key={it.id} className={`sched-item ${it.tone}`} onClick={it.go}>
+                  <span className="sched-dot" />
+                  <span className="sched-t"><b>{it.title}</b>{it.sub && <small>{it.sub}</small>}</span>
+                  <span className="sched-time">{it.time ?? ''}</span>
+                </button>
+              )) : <p className="sched-empty"><Icon name="check" size={18} /> Nada marcado para {day === t ? 'hoje' : fmtDate(day).slice(0, 5)}.</p>}
+            </div>
+          </div>
+        </section>
 
-      <div className="kpis">
-        <button className="kpi" onClick={() => go('/cadastros/empresas')}>
-          <span className="kpi-top"><span className="kpi-l">saldo nas contas</span><span className="kpi-ic"><Icon name="wallet" size={16} /></span></span>
-          <strong className={balance < 0 ? 'neg' : ''}>{money(balance)}</strong>
-          <small>em 45 dias: {money(endBal)}{lowest.value < 0 ? <span className="neg"> · fica negativo em {fmtDate(lowest.date).slice(0, 5)}</span> : ''}</small>
-        </button>
-        <button className="kpi" onClick={() => go('/financeiro')}>
-          <span className="kpi-top"><span className="kpi-l">a receber</span><span className="kpi-ic in"><Icon name="arrowUp" size={16} /></span></span>
-          <strong className="pos">{money(sum(toReceive))}</strong>
-          <small>{lateIn.length ? <span className="neg">{money(sum(lateIn))} atrasado</span> : `${toReceive.length} lançamento(s)`}</small>
-        </button>
-        <button className="kpi" onClick={() => go('/financeiro')}>
-          <span className="kpi-top"><span className="kpi-l">a pagar</span><span className="kpi-ic out"><Icon name="arrowDown" size={16} /></span></span>
-          <strong>{money(sum(toPay) + pendingDaily)}</strong>
-          <small>{lateOut.length ? <span className="neg">{lateOut.length} vencida(s) · {money(sum(lateOut))}</span> : pendingDaily ? `inclui ${money(pendingDaily)} de diárias` : `${toPay.length} lançamento(s)`}</small>
-        </button>
-        <div className="kpi">
-          <span className="kpi-top"><span className="kpi-l">resultado de {monthName(ym).split(' ')[0]}</span><span className="kpi-ic"><Icon name="trend" size={16} /></span></span>
-          <strong className={m.result < 0 ? 'neg' : 'pos'}>{money(m.result)}</strong>
-          <small>previsto no mês: {money(m.forecast)}</small>
-        </div>
+        <section className="card todo">
+          <div className="card-head"><div><span className="eyebrow">eu aviso</span><h2 className="duo">Precisa da <em>sua atenção</em></h2></div>{todo.length > 0 && <span className="todo-count">{todo.length}</span>}</div>
+          {todo.length ? (
+            <div className="todo-list">
+              {todo.map((x) => (
+                <button key={x.title} className={`todo-row ${x.tone}`} onClick={x.go}>
+                  <span className="todo-ic"><Icon name={x.icon} size={18} /></span>
+                  <span className="todo-t"><b>{x.title}</b><small>{x.sub}</small></span>
+                  <span className="todo-go">{x.action} <Icon name="chevron" size={14} /></span>
+                </button>
+              ))}
+            </div>
+          ) : <p className="todo-ok"><Icon name="check" size={18} /> Tudo em dia. Nada pendente por aqui.</p>}
+        </section>
+
+        <section className="card split">
+          <div className="card-head"><div><span className="eyebrow">separado sozinho · {monthName(ym).split(' ')[0]}</span><h2 className="duo">Empresa <em>e pessoal</em></h2></div></div>
+          {([['empresa', 'Empresa', mEmp, balEmp, 'briefcase'], ...(pessoal && mPes ? [[pessoal.id, 'Pessoal', mPes, balPes, 'user']] : [])] as [string, string, ReturnType<typeof monthSummary>, number, string][]).map(([sc, label, m, b, ic]) => (
+            <button key={sc} className="split-row" onClick={() => viewFin(sc)}>
+              <span className={`split-ic ${label === 'Pessoal' ? 'pes' : 'emp'}`}><Icon name={ic} size={18} /></span>
+              <span className="split-main">
+                <span className="split-top"><b>{label}</b><small>saldo {money(b)}</small></span>
+                <span className="split-bars">
+                  <i className="in" style={{ width: `${(m.inAll / maxSplit) * 100}%` }} />
+                  <i className="out" style={{ width: `${(m.outAll / maxSplit) * 100}%` }} />
+                </span>
+                <span className="split-nums"><span className="pos">+{money(m.inAll)}</span><span className="neg">−{money(m.outAll)}</span><b className={m.forecast < 0 ? 'neg' : ''}>{m.forecast >= 0 ? '' : '−'}{money(Math.abs(m.forecast))}</b></span>
+              </span>
+            </button>
+          ))}
+          <p className="muted small">Entradas, saídas e resultado previsto do mês. Toque para ver os lançamentos.</p>
+        </section>
+
+        <section className="card">
+          <div className="card-head"><div><span className="eyebrow">em andamento</span><h2 className="duo">Suas <em>obras</em></h2></div><a className="link" href="#/obras">ver todas</a></div>
+          {projects.length ? (
+            <div className="proj-list">
+              {projects.map((p) => {
+                const st = projectStats(data, p.id)
+                return (
+                  <a key={p.id} className="proj-row" href={`#/obras/${p.id}`}>
+                    {p.budget > 0 ? <Ring value={st.budgetUse} size={44} /> : <span className="ring-ph sm"><Icon name="building" size={18} /></span>}
+                    <span className="proj-row-b"><b>{p.name}</b><small>gasto {money(st.cost)}{p.budget ? ` de ${money(p.budget)}` : ''}</small></span>
+                  </a>
+                )
+              })}
+            </div>
+          ) : <p className="muted">Nenhuma obra em andamento. <a className="link" href="#/obras">Cadastrar obra</a></p>}
+        </section>
       </div>
 
       <section className="card">
@@ -165,9 +248,9 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
             <button className={view === 'saldo' ? 'on' : ''} onClick={() => setView('saldo')}>saldo previsto</button>
             <button className={view === 'meses' ? 'on' : ''} onClick={() => setView('meses')}>entradas × saídas</button>
             <button className={view === 'gastos' ? 'on' : ''} onClick={() => setView('gastos')}>gastos do mês</button>
-            {isGroup(scope) && <button className={view === 'cnpj' ? 'on' : ''} onClick={() => setView('cnpj')}>por CNPJ</button>}
+            <button className={view === 'cnpj' ? 'on' : ''} onClick={() => setView('cnpj')}>por CNPJ</button>
           </div>
-          {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))} em 45 dias</span>}
+          {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))} em 45 dias{lowest.value < 0 ? ` · negativo em ${fmtDate(lowest.date).slice(0, 5)}` : ''}</span>}
         </div>
         {view === 'saldo' && <ForecastChart points={forecast} height={220} />}
         {view === 'meses' && <MonthBars data={chart} />}
@@ -175,43 +258,10 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
         {view === 'cnpj' && <Compare scope={scope} />}
       </section>
 
-      <div className="cols">
-        <section className="card">
-          <div className="card-head">
-            <h2>próximos 15 dias</h2>
-            {(pendingDaily > 0) && <a className="link" href="#/equipe/diarias">diárias a acertar: {money(pendingDaily)}</a>}
-          </div>
-          <TxList txs={upcoming} scope={scope} empty="Nada vencendo nos próximos 15 dias" />
-          <button className="link" onClick={() => onNewTx({ kind: 'out' })}>+ lançar conta</button>
-        </section>
-        <div className="stack">
-          <section className="card">
-            <div className="card-head"><h2>agenda</h2><a className="link" href="#/agenda">abrir</a></div>
-            {agenda.length ? agenda.map((e) => (
-              <a key={e.id + e.date} className="ag-card" href="#/agenda">
-                <span className="ag-day"><b>{e.date === t ? 'hoje' : 'amanhã'}</b>{e.time && <small>{e.time}</small>}</span>
-                <span><b>{e.title}</b>{e.place && <small><Icon name="pin" size={13} /> {e.place}</small>}</span>
-              </a>
-            )) : <p className="muted">Nada marcado para hoje e amanhã.</p>}
-          </section>
-          {projects.length > 0 && (
-            <section className="card">
-              <div className="card-head"><h2>obras em andamento</h2><a className="link" href="#/obras">ver todas</a></div>
-              <div className="proj-list">
-                {projects.map((p) => {
-                  const s = projectStats(data, p.id)
-                  return (
-                    <a key={p.id} className="proj-row" href={`#/obras/${p.id}`}>
-                      {p.budget > 0 ? <Ring value={s.budgetUse} size={44} /> : <span className="ring-ph sm"><Icon name="building" size={18} /></span>}
-                      <span className="proj-row-b"><b>{p.name}</b><small>gasto {money(s.cost)}{p.budget ? ` de ${money(p.budget)}` : ''}</small></span>
-                    </a>
-                  )
-                })}
-              </div>
-            </section>
-          )}
-        </div>
-      </div>
+      <section className="card">
+        <div className="card-head"><div><span className="eyebrow">15 dias</span><h2 className="duo">Contas que <em>vêm aí</em></h2></div><button className="link" onClick={() => onNewTx({ kind: 'out', paid: undefined })}>+ lançar conta</button></div>
+        <TxList txs={upcoming} scope={scope} empty="Nada vencendo nos próximos 15 dias" />
+      </section>
     </div>
   )
 }

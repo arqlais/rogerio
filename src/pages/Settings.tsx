@@ -45,6 +45,14 @@ export function SettingsPage() {
         </div>
       </section>
       <section className="card">
+        <div className="card-head"><h2>Começar fácil</h2></div>
+        <div className="row wrap">
+          <a className="btn" href="#/importar">Importar planilha (Excel / CSV)</a>
+          <button className="btn" onClick={() => setSettings({ onboarded: false })}>Ver o passo a passo de novo</button>
+          {!!Object.keys(s.learned ?? {}).length && <button className="btn ghost" onClick={async () => { if (await confirmDialog('Esquecer o que aprendi sobre empresa/pessoal? Volto a adivinhar pelas palavras.', 'Esquecer', false)) setSettings({ learned: {} }) }}>Esquecer o que aprendi ({Object.keys(s.learned ?? {}).length})</button>}
+        </div>
+      </section>
+      <section className="card">
         <div className="card-head"><h2>Seus dados</h2></div>
         <p className="muted">{CLOUD ? <>Conectado como <b>{userEmail}</b>. Os dados ficam salvos na nuvem e aparecem iguais no celular e no computador.</> : <>Os dados estão salvos <b>só neste aparelho</b>. Faça backup de vez em quando.</>}</p>
         <div className="row wrap">

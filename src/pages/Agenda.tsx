@@ -7,6 +7,8 @@ import { buildICS } from '../ics'
 import { Field, Modal, confirmDialog, toast } from '../components/ui'
 import { downloadFile, ownedBy, WEEKDAYS, addDays, addMonth, addMonths, daysBetween, fmtDate, inScope, money, month, monthName, projectName, toDate, today, uid } from '../utils'
 
+const Pin = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" /></svg>
+
 const KINDS: Record<EventKind, [string, string]> = {
   visita: ['Visita à obra', '#e8772e'],
   reuniao: ['Reunião', '#2f6fb0'],
@@ -38,12 +40,13 @@ function occurrences(ev: CalEvent, from: string, to: string): string[] {
 
 export function Agenda() {
   const { data } = useStore()
-  const scope = data.settings.scope
+  const scope = 'all' // obras, agenda e orçamentos mostram tudo (o filtro Empresa/Pessoal é do Financeiro)
   const [ym, setYm] = useState(month(today()))
   const [day, setDay] = useState(today())
   const [edit, setEdit] = useState<Partial<CalEvent> | null>(null)
   const [tx, setTx] = useState<Tx | null>(null)
   const [showMoney, setShowMoney] = useState(true)
+  const [mode, setMode] = useState<'dias' | 'mes'>('dias')
 
   const first = `${ym}-01`
   const gridStart = addDays(first, -toDate(first).getDay())
@@ -86,10 +89,56 @@ export function Agenda() {
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Agenda</h1>
-        <button className="btn primary" onClick={() => setEdit({ date: day })}>+ Compromisso</button>
+        <div>
+          <span className="eyebrow">compromissos, contas e prazos</span>
+          <h1 className="duo">Sua <em>agenda</em></h1>
+        </div>
+        <div className="ag-top">
+          <div className="qtx-paid" role="radiogroup" aria-label="Como ver">
+            <button className={mode === 'dias' ? 'on' : ''} onClick={() => setMode('dias')}>Próximos dias</button>
+            <button className={mode === 'mes' ? 'on' : ''} onClick={() => setMode('mes')}>Calendário</button>
+          </div>
+          <button className="fab-sm" onClick={() => setEdit({ date: day })} aria-label="Novo compromisso" title="Novo compromisso">+</button>
+        </div>
       </div>
-      <div className="agenda">
+      {mode === 'dias' && (
+        <div className="sk-days">
+          {Array.from({ length: 21 }, (_, i) => addDays(today(), i)).map((d) => ({ d, list: on(d).filter((it) => it.type !== 'event' || !it.ev.done) })).filter(({ d, list }) => list.length || d === today()).map(({ d, list }) => (
+            <div key={d} className={`sk-day ${d === today() ? 'today' : ''}`}>
+              <div className="sk-date"><b>{d.slice(8)}</b><small>{d === today() ? 'hoje' : toDate(d).toLocaleDateString('pt-BR', { weekday: 'short', month: 'short' }).replace(/\./g, '')}</small></div>
+              <div className="sk-cards">
+                {!list.length && <p className="sched-empty">Nada marcado para hoje. <button className="link" onClick={() => setEdit({ date: d })}>+ compromisso</button></p>}
+                {list.map((it, k) => {
+                  if (it.type === 'event') {
+                    const [label, color] = KINDS[it.ev.kind]
+                    return (
+                      <button key={k} className="sk-card" style={{ ['--c' as string]: color }} onClick={() => setEdit(it.ev)}>
+                        <span className="sk-top"><span className="sk-kind">{label}</span>{it.ev.time && <b className="sk-time">{it.ev.time}</b>}</span>
+                        <strong>{it.ev.title}</strong>
+                        {(it.ev.place || it.ev.projectId) && <small><Pin /> {[it.ev.place, it.ev.projectId && projectName(data, it.ev.projectId)].filter(Boolean).join(' · ')}</small>}
+                      </button>
+                    )
+                  }
+                  if (it.type === 'tx') return (
+                    <button key={k} className={`sk-card money ${it.tx.kind}`} onClick={() => setTx(it.tx)}>
+                      <span className="sk-top"><span className="sk-kind">{it.tx.kind === 'in' ? 'receber' : 'pagar'}{it.tx.due < today() ? ' · vencido' : ''}</span><b className="sk-time">{money(it.tx.amount)}</b></span>
+                      <strong>{it.tx.description}</strong>
+                    </button>
+                  )
+                  return (
+                    <a key={k} className="sk-card" style={{ ['--c' as string]: '#c0392b' }} href={`#/obras/${it.id}`}>
+                      <span className="sk-top"><span className="sk-kind">prazo da obra</span></span>
+                      <strong>Término previsto · {it.name}</strong>
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          <PhoneSync />
+        </div>
+      )}
+      {mode === 'mes' && <div className="agenda">
         <section className="card flush">
           <div className="month-nav pad">
             <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
@@ -134,7 +183,7 @@ export function Agenda() {
             {upcoming.length ? upcoming.map((it, i) => <div key={i} className="ag-up"><small>{fmtDate(it.date).slice(0, 5)}</small><Row it={it} /></div>) : <p className="muted">Nenhum compromisso marcado.</p>}
           </section>
         </div>
-      </div>
+      </div>}
       {edit && <EventForm initial={edit} onClose={() => setEdit(null)} />}
       {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}
     </div>

@@ -11,18 +11,34 @@ import { isGroup, accountName, addDays, addMonth, downloadFile, entityName, fmtD
 
 type Tab = 'aberto' | 'gastos' | 'extrato' | 'notas' | 'relatorio'
 
-export function Finance() {
+export function Finance({ onNewTx }: { onNewTx?: (t: Partial<Tx>) => void }) {
+  const { data, setSettings } = useStore()
   const [tab, setTab] = useState<Tab>('aberto')
-  const [tx, setTx] = useState<Partial<Tx> | null>(null)
+  const [tx, setTxState] = useState<Partial<Tx> | null>(null)
+  const setTx = (t: Partial<Tx>) => (onNewTx ? onNewTx(t) : setTxState(t))
+  const scope = data.settings.scope
+  const pessoal = data.entities.find((e) => e.kind === 'pessoal')
   return (
     <div className="page">
       <div className="page-head">
-        <h1>Financeiro</h1>
-        <div className="row wrap">
-          <button className="btn" onClick={() => setTx({ kind: 'transfer' })}><Icon name="swap" size={16} /> Transferência</button>
-          <button className="btn" onClick={() => setTx({ kind: 'in' })}><Icon name="arrowUp" size={16} /> Entrada</button>
-          <button className="btn primary" onClick={() => setTx({ kind: 'out' })}><Icon name="plus" size={16} /> Gasto</button>
+        <div>
+          <span className="eyebrow">dinheiro da empresa e pessoal</span>
+          <h1 className="duo">Finan<em>ceiro</em></h1>
         </div>
+        <div className="row wrap">
+          <button className="btn" onClick={() => setTx({ kind: 'transfer' })}><Icon name="swap" size={16} /> Transferir</button>
+          <button className="btn" onClick={() => setTx({ kind: 'in' })}><Icon name="arrowUp" size={16} /> Entrou</button>
+          <button className="btn primary" onClick={() => setTx({ kind: 'out' })}><Icon name="arrowDown" size={16} /> Saiu</button>
+        </div>
+      </div>
+      <div className="view-switch" role="radiogroup" aria-label="Ver">
+        <span>ver</span>
+        <div className="chips">
+          <button className={scope === 'all' ? 'on' : ''} onClick={() => setSettings({ scope: 'all' })}>Tudo</button>
+          <button className={scope === 'empresa' ? 'on' : ''} onClick={() => setSettings({ scope: 'empresa' })}><Icon name="briefcase" size={15} /> Empresa</button>
+          {pessoal && <button className={scope === pessoal.id ? 'on' : ''} onClick={() => setSettings({ scope: pessoal.id })}><Icon name="user" size={15} /> Pessoal</button>}
+        </div>
+        <small className="muted">separado automaticamente pelo que você lança</small>
       </div>
       <Tabs value={tab} onChange={setTab} items={[['aberto', 'A pagar e a receber'], ['gastos', 'Gastos'], ['extrato', 'Extrato do mês'], ['notas', 'Notas fiscais'], ['relatorio', 'Relatórios']]} />
       {tab === 'aberto' && <Open />}
@@ -30,7 +46,7 @@ export function Finance() {
       {tab === 'extrato' && <Statement />}
       {tab === 'notas' && <Invoices />}
       {tab === 'relatorio' && <Reports />}
-      {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}
+      {tx && <TxForm initial={tx} onClose={() => setTxState(null)} />}
     </div>
   )
 }

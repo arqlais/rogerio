@@ -295,6 +295,10 @@ export interface Settings {
   lastEntity?: string // última empresa usada nos formulários (já vem escolhida)
   payday: number // dia do pagamento dos fixos
   weekStart: number // 1 = segunda (fechamento das diárias)
+  mainCompany?: string // CNPJ onde caem os gastos da empresa sem obra
+  learned?: Record<string, { category: string; scope: 'empresa' | 'pessoal' }> // escolhas que o sistema aprendeu
+  onboarded?: boolean // já passou pelo passo a passo do primeiro acesso
+  tips?: string[] // dicas já vistas
 }
 
 export interface Data {
