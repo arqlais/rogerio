@@ -1,8 +1,9 @@
+import { Icon } from '../components/Icon'
 import { useState } from 'react'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Entity, Profile } from '../types'
-import { Field, Modal, Stat, confirmDialog, toast } from '../components/ui'
+import { Field, Modal, Stat, confirmDialog, toast, PageHead } from '../components/ui'
 import { readLogo } from './Registry'
 import { letterhead, quoteTotals } from './Quotes'
 import { openDocument } from '../components/ui'
@@ -38,7 +39,7 @@ export function EntityProfile({ id }: { id: string }) {
 
   return (
     <div className="page">
-      <a className="back" href="#/cadastros">‹ Empresas</a>
+      <a className="back" href="#/cadastros"><Icon name="chevronLeft" size={16} /> Empresas</a>
       <section className="card profile-head" style={{ borderTopColor: e.color }}>
         {e.logo ? <img className="logo-lg" src={e.logo} alt={e.name} /> : <span className="logo-lg ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}
         <div className="profile-id">
@@ -46,7 +47,7 @@ export function EntityProfile({ id }: { id: string }) {
           <p className="muted">{company ? e.legalName || 'Empresa' : 'Finanças pessoais'}{e.doc ? ` · ${company ? 'CNPJ' : 'CPF'} ${e.doc}` : ''}</p>
         </div>
         <div className="row wrap">
-          <button className={`btn ${e.favorite ? 'star-on' : ''}`} onClick={() => save('entities', { ...e, favorite: !e.favorite })} aria-pressed={!!e.favorite}>{e.favorite ? '★ Principal' : '☆ Marcar como principal'}</button>
+          <button className={`btn ${e.favorite ? 'star-on' : ''}`} onClick={() => save('entities', { ...e, favorite: !e.favorite })} aria-pressed={!!e.favorite}><Icon name="star" size={16} /> {e.favorite ? 'Principal' : 'Marcar como principal'}</button>
           <button className="btn" onClick={() => { setSettings({ scope: e.kind === 'pessoal' ? e.id : 'empresa' }); go('/') }}>Ver finanças</button>
           <button className="btn primary" onClick={() => setEdit(true)}>Editar dados</button>
         </div>
@@ -197,7 +198,7 @@ export function OwnerProfile() {
   const companies = data.entities.filter((e) => e.kind === 'empresa')
   return (
     <div className="page narrow">
-      <div className="page-head"><h1>Meu perfil</h1></div>
+      <PageHead eyebrow="seus dados" title="Meu" accent="perfil" />
       <section className="card profile-head">
         {p.photo ? <img className="logo-lg round" src={p.photo} alt="" /> : <span className="logo-lg ph round">{(p.fullName || data.settings.owner || 'R').slice(0, 1)}</span>}
         <div className="profile-id">
@@ -224,8 +225,8 @@ export function OwnerProfile() {
         <div className="card-head"><h2>Minhas empresas</h2><a className="link" href="#/cadastros">gerenciar</a></div>
         {companies.map((e) => (
           <a key={e.id} className="kv clickable" href={`#/empresa/${e.id}`}>
-            <span className="row">{e.logo ? <img className="logo-sm" src={e.logo} alt="" /> : <span className="logo-sm ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}<span>{e.name}{e.favorite ? ' ★' : ''}<br /><small className="muted">{e.doc || 'CNPJ não informado'}</small></span></span>
-            <b>›</b>
+            <span className="row">{e.logo ? <img className="logo-sm" src={e.logo} alt="" /> : <span className="logo-sm ph" style={{ background: e.color }}>{e.name.slice(0, 2)}</span>}<span>{e.name}{e.favorite ? <span className="star-mini"> <Icon name="star" size={12} /></span> : null}<br /><small className="muted">{e.doc || 'CNPJ não informado'}</small></span></span>
+            <Icon name="chevron" size={18} />
           </a>
         ))}
       </section>

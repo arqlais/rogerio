@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Icon } from '../components/Icon'
 import { useStore } from '../store'
 import { go } from '../router'
 import type { Contract, Project, Tx, Unit } from '../types'
@@ -6,7 +7,7 @@ import { TxForm } from '../components/TxForm'
 import { TxList } from '../components/TxList'
 import { ContractForm } from '../components/ContractForm'
 import { Attachments } from '../components/Attachments'
-import { Badge, Empty, Field, HBars, Modal, MoneyInput, NumInput, Progress, Stat, Tabs, confirmDialog, toast } from '../components/ui'
+import { Badge, Empty, Field, HBars, Modal, MoneyInput, NumInput, Progress, Stat, Tabs, confirmDialog, toast, PageHead } from '../components/ui'
 import { isGroup, ownedBy, KIND_LABEL, STATUS_LABEL, UNIT_LABEL, addMonths, contractPaid, entityName, fmtDate, money, num, personName, projectStats, today, uid } from '../utils'
 
 const STATUS_TONE = { orcamento: 'info', andamento: 'good', pausada: 'warn', concluida: 'muted' } as const
@@ -21,10 +22,9 @@ export function Projects() {
     .filter((p) => (status === 'todas' ? true : status === 'concluida' ? p.status === 'concluida' : p.status !== 'concluida'))
   return (
     <div className="page">
-      <div className="page-head">
-        <h1>Obras</h1>
-        <button className="btn primary" onClick={() => setEdit({})}>+ Nova obra</button>
-      </div>
+      <PageHead eyebrow="reformas, construções e o prédio" title="Suas" accent="obras" text="Quanto cada obra já custou, quanto falta receber e o que está previsto.">
+        <button className="pill-btn" onClick={() => setEdit({})}><span>Nova obra</span><i><Icon name="plus" size={18} /></i></button>
+      </PageHead>
       <div className="seg compact">
         {([['ativas', 'Ativas'], ['concluida', 'Concluídas'], ['todas', 'Todas']] as const).map(([k, l]) => <button key={k} className={status === k ? 'on' : ''} onClick={() => setStatus(k)}>{l}</button>)}
       </div>
@@ -167,7 +167,7 @@ export function ProjectDetail({ id }: { id: string }) {
 
   return (
     <div className="page">
-      <a className="back" href="#/obras">‹ Obras</a>
+      <a className="back" href="#/obras"><Icon name="chevronLeft" size={16} /> Obras</a>
       <div className="page-head">
         <div>
           <h1>{p.name}</h1>

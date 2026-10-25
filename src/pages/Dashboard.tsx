@@ -11,7 +11,7 @@ import { ownedBy, signed, accountBalance, addDays, daysBetween, addMonth, fmtDat
 const EV_TONE: Record<string, string> = { visita: 'orange', reuniao: 'navy', entrega: 'green', pessoal: 'purple', compromisso: 'navy', outro: 'navy', conta: 'red', receber: 'green' }
 
 /** Início: o que importa hoje. Usa tudo (empresa + pessoal) e mostra a divisão sozinho. */
-export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
+export function Dashboard({ onNewTx, onChat }: { onNewTx: (t: Partial<Tx>) => void; onChat?: () => void }) {
   const { data, setDemo, setSettings } = useStore()
   const scope = 'all'
   const t = today()
@@ -155,6 +155,12 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
         </div>
       )}
 
+      <button className="ai-bar" onClick={onChat}>
+        <span className="ai-logo"><Icon name="sparkle" size={18} /></span>
+        <span className="ai-bar-t"><b>Pergunte ou conte o que aconteceu</b><small>“paguei 300 de areia pra obra do prédio” · “o que vence essa semana?” · foto de nota</small></span>
+        <span className="ai-bar-go"><Icon name="chevron" size={18} /></span>
+      </button>
+
       <section className="cmd">
         <h2 className="sec-title"><i />o que você quer fazer?</h2>
         <div className="cmd-grid">
@@ -250,7 +256,7 @@ export function Dashboard({ onNewTx }: { onNewTx: (t: Partial<Tx>) => void }) {
             <button className={view === 'gastos' ? 'on' : ''} onClick={() => setView('gastos')}>gastos do mês</button>
             <button className={view === 'cnpj' ? 'on' : ''} onClick={() => setView('cnpj')}>por CNPJ</button>
           </div>
-          {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{endBal >= balance ? '▲' : '▼'} {money(Math.abs(endBal - balance))} em 45 dias{lowest.value < 0 ? ` · negativo em ${fmtDate(lowest.date).slice(0, 5)}` : ''}</span>}
+          {view === 'saldo' && <span className={`chip-v ${endBal < balance ? 'down' : 'up'}`}>{money(Math.abs(endBal - balance))} em 45 dias{lowest.value < 0 ? ` · negativo em ${fmtDate(lowest.date).slice(0, 5)}` : ''}</span>}
         </div>
         {view === 'saldo' && <ForecastChart points={forecast} height={220} />}
         {view === 'meses' && <MonthBars data={chart} />}

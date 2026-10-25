@@ -12,7 +12,8 @@ import { EntityForm } from './Profiles'
 import { ClientForm } from './Clients'
 import { ServicePicker } from './Pricing'
 import { serviceCost } from '../pricing'
-import { Badge, EntityMark, Empty, Field, Modal, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast } from '../components/ui'
+import { aiConfig, suggestItems } from '../ai'
+import { Badge, EntityMark, Empty, Field, Modal, MoneyInput, NumInput, Stat, confirmDialog, openDocument, toast, PageHead } from '../components/ui'
 import { downloadPdf } from '../pdf'
 import { ownedBy, addDays, entityName, extenso, fmtDate, money, today, uid } from '../utils'
 
@@ -103,14 +104,13 @@ function QuoteList() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <h1>Orçamentos</h1>
+      <PageHead eyebrow="no papel timbrado de cada empresa" title="Seus" accent="orçamentos" text="Escolha a empresa, a escola ou o cliente, preencha os serviços (ou peça ao assistente) e baixe o PDF pronto.">
         <div className="row wrap">
-          <button className="btn primary" onClick={() => create('pdde')}>+ Orçamento para escola (PDDE)</button>
-          <button className="btn" onClick={() => create('padrao')}>+ Orçamento comum</button>
-          <a className="btn" href="#/precos">Tabela de preços</a>
+          <a className="btn ghost" href="#/precos"><Icon name="calc" size={16} /> Tabela de preços</a>
+          <button className="btn" onClick={() => create('padrao')}>Orçamento comum</button>
+          <button className="pill-btn" onClick={() => create('pdde')}><span>Orçamento para escola</span><i><Icon name="plus" size={18} /></i></button>
         </div>
-      </div>
+      </PageHead>
       <div className="stats">
         <Stat label="Aguardando resposta" value={money(sum('enviado'))} sub={`${all.filter((x) => x.status === 'enviado').length} orçamento(s)`} tone="info" />
         <Stat label="Aprovados" value={money(sum('aprovado'))} sub={`${all.filter((x) => x.status === 'aprovado').length} orçamento(s)`} tone="good" />
@@ -149,10 +149,13 @@ function QuoteEditor({ id }: { id: string }) {
   const [entForm, setEntForm] = useState<Partial<Entity> | null>(null)
   const [clientForm, setClientForm] = useState<Partial<Client> | null>(null)
   const [fromTable, setFromTable] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
   const q = data.quotes.find((x) => x.id === id)
   if (!q) return <div className="page"><Empty title="Orçamento não encontrado" action={<a className="btn" href="#/orcamentos">Voltar</a>} /></div>
   const pdde = q.model === 'pdde'
   const ent = data.entities.find((e) => e.id === q.entityId)
+  const showLogo = q.showLogo ?? ent?.quoteLogo ?? true
+  const showWm = q.showWatermark ?? ent?.quoteWatermark ?? true
   const schools = data.clients.filter((c) => c.kind === 'escola' && !c.archived).sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || a.name.localeCompare(b.name))
   const others = data.clients.filter((c) => c.kind !== 'escola' && !c.archived).sort((a, b) => a.name.localeCompare(b.name))
   const fillFrom = (c: Client): Partial<Quote> => (pdde
@@ -216,20 +219,15 @@ function QuoteEditor({ id }: { id: string }) {
 
   return (
     <div className="page quote-page">
-      <a className="back" href="#/orcamentos">‹ Orçamentos</a>
-      <div className="page-head">
-        <div className="row" style={{ gap: 16 }}>
-          {ent?.logo && <img className="quote-logo" src={ent.logo} alt={ent.name} />}
-          <div><h1>Orçamento nº {q.number}</h1><p className="muted">{client || 'Cliente'} · {fmtDate(q.date)} · {money(t.total)}</p></div>
-        </div>
+      <PageHead back={{ href: '#/orcamentos', label: 'Orçamentos' }} eyebrow={`${ent?.name ?? ''} · ${pdde ? 'escola (PDDE)' : 'orçamento comum'}`} title="Orçamento" accent={`nº ${q.number}`} text={`${client || 'Cliente ainda não escolhido'} · ${fmtDate(q.date)} · ${money(t.total)}`}>
         <div className="row wrap">
           <select value={q.status} onChange={(e) => set({ status: e.target.value as Quote['status'] })} aria-label="Situação do orçamento">
             {Object.entries(STATUS).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
           </select>
           <button className="btn" onClick={() => printQuote(data, q)}>Ver / imprimir</button>
-          <button className="btn primary" onClick={() => downloadQuotePdf(data, q)}>Baixar PDF</button>
+          <button className="pill-btn" onClick={() => downloadQuotePdf(data, q)}><span>Baixar PDF</span><i><Icon name="arrowDown" size={18} /></i></button>
         </div>
-      </div>
+      </PageHead>
 
       <div className="q-layout">
       <div className="q-form">
@@ -257,6 +255,24 @@ function QuoteEditor({ id }: { id: string }) {
           <div className="seg">
             <button className={pdde ? 'on' : ''} onClick={() => set({ model: 'pdde' })}>Escola (PDDE / APM)</button>
             <button className={!pdde ? 'on' : ''} onClick={() => set({ model: 'padrao' })}>Orçamento comum</button>
+          </div>
+        </div>
+        <div className="q-brand">
+          <span className="field-label">No papel timbrado</span>
+          <div className="q-brand-opts">
+            <label className={`q-brand-opt ${showLogo ? 'on' : ''}`}>
+              <input type="checkbox" checked={showLogo} onChange={(e) => set({ showLogo: e.target.checked })} aria-label="Mostrar logotipo" />
+              <span className="q-brand-prev">{ent?.logo ? <img src={ent.logo} alt="" /> : <b>{ent?.name}</b>}</span>
+              <span><b>Logotipo no topo</b><small>{showLogo ? 'aparece' : 'sem logo'}</small></span>
+            </label>
+            {ent?.watermark && (
+              <label className={`q-brand-opt ${showWm ? 'on' : ''}`}>
+                <input type="checkbox" checked={showWm} onChange={(e) => set({ showWatermark: e.target.checked })} aria-label="Mostrar marca-d'água" />
+                <span className="q-brand-prev"><img src={ent.watermark} alt="" /></span>
+                <span><b>Marca-d'água</b><small>{showWm ? 'aparece' : 'sem marca-d’água'}</small></span>
+              </label>
+            )}
+            <button className="link small" onClick={() => { if (ent) { save('entities', { ...ent, quoteLogo: showLogo, quoteWatermark: showWm }); toast(`Padrão da ${ent.name} salvo`) } }}>usar sempre assim na {ent?.name}</button>
           </div>
         </div>
       </section>
@@ -320,13 +336,13 @@ function QuoteEditor({ id }: { id: string }) {
                   <MoneyInput value={i.price} onChange={(v) => setQtyPrice(i, { price: v })} placeholder="—" ariaLabel="Preço unitário" />
                   <MoneyInput value={itemTotal(i)} onChange={(v) => setItem(i.id, { total: v, price: i.qty > 0 ? Math.round((v / i.qty) * 100) / 100 : i.price })} ariaLabel="Valor total do item" />
                   <span className="q-act">
-                    <button className="icon-btn" onClick={() => move(i.id, -1)} aria-label="Subir">↑</button>
-                    <button className="icon-btn" onClick={() => set({ items: q.items.filter((x) => x.id !== i.id) })} aria-label="Remover item">✕</button>
+                    <button className="icon-btn" onClick={() => move(i.id, -1)} aria-label="Subir"><Icon name="arrowUp" size={16} /></button>
+                    <button className="icon-btn" onClick={() => set({ items: q.items.filter((x) => x.id !== i.id) })} aria-label="Remover item"><Icon name="x" size={16} /></button>
                   </span>
                 </div>
               ))}
               <div className="row between">
-                <span className="row"><button className="btn small" onClick={() => addItem()}>+ Serviço</button><button className="btn small" onClick={() => setFromTable(true)}>+ Da tabela de preços</button></span>
+                <span className="row wrap"><button className="btn small" onClick={() => addItem()}>+ Serviço</button><button className="btn small" onClick={() => setFromTable(true)}>+ Da tabela de preços</button><button className="btn small ai" onClick={() => setAiOpen(true)}><Icon name="sparkle" size={15} /> Montar com o assistente</button></span>
                 <span className="q-total">Total <b>{money(t.total)}</b></span>
               </div>
               <small className="muted">{extenso(t.total)}</small>
@@ -369,8 +385,8 @@ function QuoteEditor({ id }: { id: string }) {
                       <MoneyInput value={i.price} onChange={(v) => setQtyPrice(i, { price: v })} ariaLabel="Preço unitário" />
                       <b className="r">{money(itemTotal(i))}</b>
                       <span className="q-act">
-                        <button className="icon-btn" onClick={() => move(i.id, -1)} aria-label="Subir">↑</button>
-                        <button className="icon-btn" onClick={() => set({ items: q.items.filter((x) => x.id !== i.id) })} aria-label="Remover item">✕</button>
+                        <button className="icon-btn" onClick={() => move(i.id, -1)} aria-label="Subir"><Icon name="arrowUp" size={16} /></button>
+                        <button className="icon-btn" onClick={() => set({ items: q.items.filter((x) => x.id !== i.id) })} aria-label="Remover item"><Icon name="x" size={16} /></button>
                       </span>
                     </div>
                   ))}
@@ -381,7 +397,7 @@ function QuoteEditor({ id }: { id: string }) {
                 </div>
               </div>
             ))}
-            <div className="row"><button className="btn small" onClick={() => addItem(`${groups.length + 1}. Nova etapa`)}>+ Nova etapa</button><button className="btn small" onClick={() => setFromTable(true)}>+ Da tabela de preços</button></div>
+            <div className="row wrap"><button className="btn small" onClick={() => addItem(`${groups.length + 1}. Nova etapa`)}>+ Nova etapa</button><button className="btn small" onClick={() => setFromTable(true)}>+ Da tabela de preços</button><button className="btn small ai" onClick={() => setAiOpen(true)}><Icon name="sparkle" size={15} /> Montar com o assistente</button></div>
           </section>
         </>
       )}
@@ -426,6 +442,7 @@ function QuoteEditor({ id }: { id: string }) {
       </div>
       {entFormEl}
       {fromTable && <ServicePicker onClose={() => setFromTable(false)} onPick={addFromTable} />}
+      {aiOpen && <AiItems model={pdde ? 'pdde' : 'padrao'} onClose={() => setAiOpen(false)} onAdd={(items) => { set({ items: [...q.items.filter((i) => i.description || itemTotal(i)), ...items.map((i) => ({ ...i, group: pdde ? undefined : q.items[q.items.length - 1]?.group ?? '1. Serviços' }))] }); setAiOpen(false); toast(`${items.length} itens adicionados — confira os valores`) }} />}
       {clientFormEl}
     </div>
   )
@@ -465,7 +482,9 @@ const num = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2,
 
 /** Papel timbrado da empresa, montado em pontos (pt) da folha A4 igual aos modelos originais:
  *  logo, marca-d'água e rodapé nas mesmas posições, Calibri (Carlito) ou Arial (Arimo), títulos na cor da empresa. */
-export function letterhead(e: Entity | undefined, body: string, title: string) {
+export function letterhead(e: Entity | undefined, body: string, title: string, opts: { logo?: boolean; watermark?: boolean } = {}) {
+  const showLogo = opts.logo ?? e?.quoteLogo ?? true
+  const showWm = opts.watermark ?? e?.quoteWatermark ?? true
   const th: QuoteTheme = e?.quoteTheme ?? { font: 'calibri', heading: e?.color ?? '#333', headingSize: 11, labelSize: 10, logo: [148, 30, 300, 90], top: 150 }
   const fam = (f?: string) => (f === 'arial' ? "Arimo, Arial, Helvetica, sans-serif" : "Carlito, Calibri, 'Segoe UI', sans-serif")
   const box = (b?: number[]) => (b ? `left:${b[0]}pt;top:${b[1]}pt;width:${b[2]}pt;height:${b[3]}pt` : '')
@@ -488,7 +507,7 @@ body{font-family:${fam(th.font)};color:#000;font-size:10pt;background:#e9eaee}
 .logo{position:absolute;${box(th.logo)};display:flex;align-items:center;justify-content:center}
 .logo img{max-width:100%;max-height:100%;object-fit:contain}
 .logo b{font-size:28pt;color:${th.heading}}
-.wm{position:absolute;${box(th.wm)};background:url('${e?.watermark ?? ''}') center/contain no-repeat;opacity:${e?.watermark && th.wm ? th.wmOpacity ?? 1 : 0}}
+.wm{position:absolute;${box(th.wm)};background:url('${e?.watermark ?? ''}') center/contain no-repeat;opacity:${showWm && e?.watermark && th.wm ? th.wmOpacity ?? 1 : 0}}
 .content{position:absolute;left:85pt;top:${th.top}pt;width:425pt}
 h2{font-family:${fam(th.font)};color:${th.heading};font-size:${th.headingSize}pt;margin:0 0 9pt 18pt;font-weight:700;text-transform:uppercase;line-height:1.2}
 h2 span{display:inline-block;min-width:18pt}
@@ -510,7 +529,7 @@ td,th{border:.75pt solid #000;padding:1.5pt 5pt;vertical-align:middle;line-heigh
 </style></head><body>
 <div class="bar"><button onclick="print()">Imprimir / salvar PDF</button></div>
 <div class="sheet"><div class="wm"></div>
-<div class="logo">${e?.logo ? `<img src="${e.logo}" alt="${esc(e.name)}">` : `<b>${esc(e?.name)}</b>`}</div>
+<div class="logo">${!showLogo ? '' : e?.logo ? `<img src="${e.logo}" alt="${esc(e.name)}">` : `<b>${esc(e?.name)}</b>`}</div>
 <div class="content">${body}</div>
 ${footer}
 </div></body></html>`
@@ -579,5 +598,39 @@ ${t.bdi ? `<tr><td></td><td colspan="4">BDI (${q.bdi.toLocaleString('pt-BR')}%)<
 ${q.deadline || q.payment || q.notes ? `<h2><span>3.</span> Condições</h2><p>${q.deadline ? `<b>Prazo:</b> ${nl(q.deadline)}<br>` : ''}${q.payment ? `<b>Pagamento:</b> ${nl(q.payment)}<br>` : ''}${q.notes ? nl(q.notes) : ''}</p>` : ''}
 `
   }
-  return letterhead(e, body, `Orçamento ${q.number} – ${quoteClient(q)}`)
+  return letterhead(e, body, `Orçamento ${q.number} – ${quoteClient(q)}`, { logo: q.showLogo, watermark: q.showWatermark })
+}
+
+/** Descreve o serviço do jeito dele e o assistente monta os itens (com a tabela de preços quando houver). */
+function AiItems({ model, onClose, onAdd }: { model: 'pdde' | 'padrao'; onClose: () => void; onAdd: (items: QuoteItem[]) => void }) {
+  const { data } = useStore()
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [res, setRes] = useState<{ items: QuoteItem[]; note: string } | null>(null)
+  const hasKey = !!aiConfig(data).key
+  const run = async () => {
+    if (!text.trim()) return toast('Descreva o serviço', 'err')
+    setBusy(true)
+    try { setRes(await suggestItems(data, text, model)) } catch (e) { toast(String((e as Error).message) === 'sem-chave' ? 'Ligue o assistente em Ajustes' : String((e as Error).message), 'err') }
+    setBusy(false)
+  }
+  return (
+    <Modal title="Montar itens com o assistente" onClose={onClose} footer={<><span style={{ flex: 1 }} /><button className="btn" onClick={onClose}>Cancelar</button>{res?.items.length ? <button className="btn primary" onClick={() => onAdd(res.items)}>Adicionar {res.items.length} itens</button> : <button className="btn primary" disabled={busy || !hasKey} onClick={run}>{busy ? 'Montando…' : 'Montar itens'}</button>}</>}>
+      {!hasKey ? <p>Para usar, ligue o assistente em <a className="link" href="#/config" onClick={onClose}>Ajustes → Assistente</a> (é grátis).</p> : (
+        <>
+          <Field label="O que vai ser feito?" hint="Escreva do seu jeito: serviços, quantidades, medidas. Ex.: pintar 3 salas de 40 m², trocar 20 lâmpadas e 6 tomadas, refazer o rejunte do banheiro.">
+            <textarea rows={4} value={text} onChange={(e) => { setText(e.target.value); setRes(null) }} aria-label="Descrição do serviço" autoFocus />
+          </Field>
+          {res && (
+            <div className="ai-items">
+              {res.note && <p className="muted small">{res.note}</p>}
+              {res.items.map((i) => <div key={i.id} className="kv"><span>{i.description} · {i.qty} {i.unit}</span><b>{money(i.qty * i.price)}</b></div>)}
+              <div className="kv"><span><b>Total</b></span><b>{money(res.items.reduce((s, i) => s + i.qty * i.price, 0))}</b></div>
+              <button className="link small" onClick={run}>montar de novo</button>
+            </div>
+          )}
+        </>
+      )}
+    </Modal>
+  )
 }

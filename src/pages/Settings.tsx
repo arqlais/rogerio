@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useStore, emptyData } from '../store'
 import { importFromSupabase } from '../migrate'
+import { aiConfig, rememberAi, DEFAULT_MODEL } from '../ai'
 import { CLOUD } from '../cloud'
 import { signOut } from '../App'
-import { Field, Modal, NumInput, confirmDialog, toast } from '../components/ui'
+import { Field, Modal, NumInput, confirmDialog, toast, PageHead } from '../components/ui'
 import { downloadFile, today } from '../utils'
 import type { Data } from '../types'
 
@@ -48,7 +49,7 @@ export function SettingsPage() {
 
   return (
     <div className="page narrow">
-      <div className="page-head"><h1>Ajustes</h1></div>
+      <PageHead eyebrow="preferências" title="Ajustes" accent="e assistente" />
       <section className="card">
         <div className="card-head"><h2>Geral</h2></div>
         <div className="grid-form">
@@ -61,6 +62,7 @@ export function SettingsPage() {
           </Field>
         </div>
       </section>
+      <AiSettings />
       <section className="card">
         <div className="card-head"><h2>Começar fácil</h2></div>
         <div className="row wrap">
@@ -97,5 +99,23 @@ export function SettingsPage() {
         </Modal>
       )}
     </div>
+  )
+}
+
+function AiSettings() {
+  const { data, setSettings } = useStore()
+  const cfg = aiConfig(data)
+  const [key, setKey] = useState(cfg.key)
+  const [model, setModel] = useState(cfg.model)
+  const saveAi = () => { setSettings({ ai: { key: key.trim(), model: model.trim() || DEFAULT_MODEL } }); rememberAi(key.trim(), model.trim() || DEFAULT_MODEL); toast(key.trim() ? 'Assistente salvo' : 'Assistente desligado') }
+  return (
+    <section className="card">
+      <div className="card-head"><div><h2>Assistente (Google Gemini)</h2><small className="muted">{cfg.key ? 'ligado' : 'desligado'} · conversa sobre os seus dados, lê foto de nota e monta orçamentos</small></div></div>
+      <div className="grid-form">
+        <Field label="Chave do Gemini" hint={<>Crie grátis em <a className="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a></>}><input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="AIza…" aria-label="Chave do Gemini" /></Field>
+        <Field label="Modelo" hint="deixe o padrão, a não ser que dê erro de modelo"><input value={model} onChange={(e) => setModel(e.target.value)} aria-label="Modelo do Gemini" /></Field>
+      </div>
+      <div className="row wrap" style={{ marginTop: 12 }}><button className="btn primary" onClick={saveAi}>Salvar</button>{cfg.key && <button className="btn ghost" onClick={() => { setKey(''); setSettings({ ai: { key: '', model } }); rememberAi('', model); toast('Assistente desligado') }}>Desligar</button>}</div>
+    </section>
   )
 }

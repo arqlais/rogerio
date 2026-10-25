@@ -142,7 +142,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                     </select>
                     {roleValue[p.role] ? <MoneyInput value={p.value} onChange={(v) => setPeople((l) => l.map((x) => (x.id === p.id ? { ...x, value: v } : x)))} ariaLabel={roleValue[p.role]} placeholder={roleValue[p.role]} /> : <span />}
                     <input value={p.phone} onChange={(e) => setPeople((l) => l.map((x) => (x.id === p.id ? { ...x, phone: e.target.value } : x)))} placeholder="Telefone" inputMode="tel" aria-label="Telefone" />
-                    <button className="icon-btn" onClick={() => setPeople((l) => l.filter((x) => x.id !== p.id))} aria-label="Remover">✕</button>
+                    <button className="icon-btn" onClick={() => setPeople((l) => l.filter((x) => x.id !== p.id))} aria-label="Remover"><Icon name="x" size={16} /></button>
                   </div>
                 ))}
               </div>
@@ -164,7 +164,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                     </select>
                     <input value={p.client} onChange={(e) => setProjects((l) => l.map((x) => (x.id === p.id ? { ...x, client: e.target.value } : x)))} placeholder="Cliente" aria-label="Cliente" />
                     <MoneyInput value={p.value} onChange={(v) => setProjects((l) => l.map((x) => (x.id === p.id ? { ...x, value: v } : x)))} ariaLabel="Valor do contrato" placeholder="valor do contrato" />
-                    <button className="icon-btn" onClick={() => setProjects((l) => l.filter((x) => x.id !== p.id))} aria-label="Remover">✕</button>
+                    <button className="icon-btn" onClick={() => setProjects((l) => l.filter((x) => x.id !== p.id))} aria-label="Remover"><Icon name="x" size={16} /></button>
                   </div>
                 ))}
               </div>

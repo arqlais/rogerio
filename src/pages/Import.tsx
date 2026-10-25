@@ -3,7 +3,7 @@ import { useStore } from '../store'
 import { go } from '../router'
 import type { Tx } from '../types'
 import { Icon } from '../components/Icon'
-import { Empty, toast } from '../components/ui'
+import { Empty, toast, PageHead } from '../components/ui'
 import { classify, fallbackCategory, learn, placeFor, type Scope } from '../classify'
 import { fmtDate, money, today, uid } from '../utils'
 
@@ -170,12 +170,7 @@ export function ImportPage() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">trazer o que já está anotado</span>
-          <h1 className="duo">Importar <em>planilha</em></h1>
-        </div>
-      </div>
+      <PageHead eyebrow="trazer o que já está anotado" title="Importar" accent="planilha" text="Escolha o arquivo, confira as colunas e importe. Empresa e pessoal já vêm separados." />
 
       <label className={`imp-drop ${busy ? 'busy' : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); open(e.dataTransfer.files[0]) }}>
         <Icon name="upload" size={28} />
@@ -245,7 +240,7 @@ export function ImportPage() {
                         <button className={r.scope === 'pessoal' ? 'on pes' : ''} onClick={() => setRow(r.key, { scope: 'pessoal' })}>Pessoal</button>
                       </span>
                       <button className={`r imp-val ${r.kind}`} onClick={() => setRow(r.key, { kind: r.kind === 'in' ? 'out' : 'in' })} title="tocar para trocar entrada/saída">{r.kind === 'in' ? '+' : '−'}{money(r.amount)}</button>
-                      <button className="icon-btn" onClick={() => setRow(r.key, { skip: !r.skip })} aria-label={r.skip ? 'Incluir linha' : 'Ignorar linha'}>{r.skip ? '↺' : '✕'}</button>
+                      <button className="icon-btn" onClick={() => setRow(r.key, { skip: !r.skip })} aria-label={r.skip ? 'Incluir linha' : 'Ignorar linha'}><Icon name={r.skip ? 'undo' : 'x'} size={16} /></button>
                     </div>
                   ))}
                   {rows.length > 500 && <p className="muted small pad">Mostrando 500 de {rows.length} linhas (todas serão importadas).</p>}

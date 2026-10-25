@@ -25,27 +25,31 @@ import { Clients } from './pages/Clients'
 import { PricingPage } from './pages/Pricing'
 import { ImportPage } from './pages/Import'
 import { Onboarding } from './pages/Onboarding'
+import { Assistant } from './components/Assistant'
 
 const NAV: [string, string, string][] = [
   ['', 'Início', 'home'],
   ['agenda', 'Agenda', 'calendar'],
   ['financeiro', 'Financeiro', 'wallet'],
-  ['obras', 'Obras', 'building'],
   ['orcamentos', 'Orçamentos', 'file'],
-  ['precos', 'Preços', 'calc'],
+  ['obras', 'Obras', 'building'],
   ['equipe', 'Equipe', 'users'],
   ['clientes', 'Clientes', 'school'],
+  ['precos', 'Preços', 'calc'],
   ['cadastros', 'Empresas', 'briefcase'],
   ['config', 'Ajustes', 'settings'],
 ]
-const GROUPS: [string, string[]][] = [
-  ['hoje', ['', 'agenda']],
-  ['dinheiro', ['financeiro', 'orcamentos', 'precos']],
-  ['obras e pessoas', ['obras', 'equipe', 'clientes']],
-  ['cadastros', ['cadastros', 'config']],
+// no cabeçalho: as páginas do dia a dia; o resto fica em "Mais"
+const MAIN = ['', 'agenda', 'financeiro', 'orcamentos', 'obras', 'equipe']
+const MORE: [string, string, string, string][] = [
+  ['clientes', 'Clientes e escolas', 'school', 'cadastro com CNPJ da APM'],
+  ['precos', 'Tabela de preços', 'calc', 'calcular obra e serviços'],
+  ['importar', 'Importar planilha', 'upload', 'trazer o que já está no Excel'],
+  ['cadastros', 'Empresas e contas', 'briefcase', 'CNPJs, logos, bancos'],
+  ['config', 'Ajustes', 'settings', 'assistente, backup, agenda'],
 ]
 // no celular: 2 atalhos + botão Lançar + 2 atalhos + "Mais"
-const MOBILE = ['', 'financeiro', 'obras', 'agenda']
+const PHONE = ['', 'financeiro', 'orcamentos', 'agenda']
 
 export default function App() {
   return (
@@ -60,25 +64,19 @@ function Shell() {
   const { data, setSettings, sync, savedAt, userEmail, demo, setDemo } = useStore()
   const [theme, setTheme] = useTheme()
   const [tx, setTx] = useState<Partial<Tx> | null>(null)
-  const [more, setMore] = useState(false)
+  const [menu, setMenu] = useState<'' | 'mais' | 'eu' | 'sheet'>('')
+  const [chat, setChat] = useState(false)
   const layout: Layout = 'classico'
   const setLayout = () => {}
-  // o filtro Empresa/Pessoal agora fica só dentro do Financeiro; aqui só garante um valor válido
+  // o filtro Empresa/Pessoal fica só dentro do Financeiro; aqui só garante um valor válido
   const scope = data.settings.scope
   const validScope = scope === 'all' || scope === 'empresa' || data.entities.some((e) => e.id === scope && e.kind === 'pessoal')
   useEffect(() => { if (!validScope) setSettings({ scope: 'all' }) }, [validScope, setSettings])
-  const toggleDemo = () => { setDemo(!demo); toast(demo ? 'Voltou para os seus dados' : 'Mostrando o exemplo preenchido — seus dados continuam guardados') }
-  const tools = (
-    <div className="side-tools">
-      <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'} aria-label={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button>
-      <button className={`icon-btn ${demo ? 'on' : ''}`} onClick={toggleDemo} title={demo ? 'Esconder o exemplo (voltar aos meus dados)' : 'Ver exemplo preenchido'} aria-label="Exemplo preenchido"><Icon name={demo ? 'eye' : 'eyeOff'} /></button>
-      <button className="icon-btn" onClick={() => { setMore(false); setSettings({ onboarded: false }) }} title="Passo a passo" aria-label="Passo a passo"><Icon name="help" /></button>
-      <span style={{ flex: 1 }} />
-      {CLOUD && <button className="icon-btn" onClick={async () => { if (await confirmDialog('Sair da conta neste aparelho?', 'Sair', false)) signOut() }} title="Sair" aria-label="Sair"><Icon name="logout" /></button>}
-    </div>
-  )
+  const route0 = route[0] ?? ''
+  useEffect(() => { setMenu(''); window.scrollTo(0, 0) }, [route0, route[1]])
+  const toggleDemo = () => { setDemo(!demo); setMenu(''); toast(demo ? 'Voltou para os seus dados' : 'Mostrando o exemplo preenchido — seus dados continuam guardados') }
 
-  const page = route[0] ?? ''
+  const page = route0
   let content: ReactNode
   if (page === 'financeiro') content = <Finance onNewTx={setTx} />
   else if (page === 'obras' && route[1]) content = <ProjectDetail id={route[1]} />
@@ -94,12 +92,25 @@ function Shell() {
   else if (page === 'clientes') content = <Clients />
   else if (page === 'precos') content = <PricingPage tab={route[1]} />
   else if (page === 'importar') content = <ImportPage />
-  else content = <Dashboard onNewTx={setTx} />
+  else content = <Dashboard onNewTx={setTx} onChat={() => setChat(true)} />
 
   const isOn = (k: string) => page === k || (k === 'equipe' && page === 'pessoa') || (k === 'cadastros' && page === 'empresa') || (k === 'config' && (page === 'perfil' || page === 'importar'))
+  const moreOn = MORE.some(([k]) => isOn(k))
   const syncText = sync === 'local' ? 'salvo neste aparelho' : sync === 'salvando' ? 'salvando…' : sync === 'erro' ? 'erro ao salvar na nuvem' : `salvo na nuvem${savedAt ? ` · ${savedAt}` : ''}`
-  const launcher = (
-    <button className="pill-btn" onClick={() => setTx({ kind: 'out' })}><span>Lançar</span><i><Icon name="plus" size={18} /></i></button>
+  const name = shortName(data.settings.profile?.fullName) || data.settings.owner || 'Gestão'
+  const ini = initials(data.settings.profile?.fullName || data.settings.owner || 'RV')
+  const avatar = data.settings.profile?.photo ? <img src={data.settings.profile.photo} alt="" /> : <span>{ini}</span>
+  const userMenu = (
+    <div className="menu me-menu" role="menu">
+      <div className="me-head"><b>{name}</b><small>{userEmail || data.settings.profile?.email}</small><small className="me-sync"><span className={`sync-dot ${sync}`} />{syncText}</small></div>
+      <a href="#/perfil"><span className="mi"><Icon name="user" size={18} /></span>Meu perfil</a>
+      <a href="#/cadastros"><span className="mi"><Icon name="briefcase" size={18} /></span>Empresas e contas</a>
+      <a href="#/config"><span className="mi"><Icon name="settings" size={18} /></span>Ajustes</a>
+      <button onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setMenu('') }} aria-label={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}><span className="mi"><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} /></span>{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</button>
+      <button onClick={toggleDemo} aria-label="Exemplo preenchido"><span className="mi"><Icon name={demo ? 'eyeOff' : 'eye'} size={18} /></span>{demo ? 'Voltar para os meus dados' : 'Ver exemplo preenchido'}</button>
+      <button onClick={() => { setMenu(''); setSettings({ onboarded: false }) }} aria-label="Passo a passo"><span className="mi"><Icon name="help" size={18} /></span>Passo a passo</button>
+      {CLOUD && <button onClick={async () => { setMenu(''); if (await confirmDialog('Sair da conta neste aparelho?', 'Sair', false)) signOut() }} aria-label="Sair"><span className="mi out"><Icon name="logout" size={18} /></span>Sair</button>}
+    </div>
   )
   const bars = (
     <>
@@ -107,84 +118,65 @@ function Shell() {
       {demo && <div className="demo-bar"><Icon name="eye" size={16} /> Você está vendo um <b>exemplo preenchido</b>. Seus dados continuam guardados. <button className="link" onClick={toggleDemo}>voltar para os meus dados</button></div>}
     </>
   )
-  const navLink = ([k, l, i]: [string, string, string]) => (
-    <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''} onClick={() => setMore(false)}>
-      <span className="nav-i"><Icon name={i} /></span>
-      <small>{l}</small>
-    </a>
-  )
-  const mobile = (
-    <>
-      <nav className="bottomnav">
-        {NAV.filter(([k]) => MOBILE.slice(0, 2).includes(k)).map(navLink)}
-        <button className="fab" onClick={() => setTx({ kind: 'out' })} aria-label="Lançar"><Icon name="plus" size={26} /></button>
-        {NAV.filter(([k]) => MOBILE.slice(2).includes(k)).map(navLink)}
-        <button className={!MOBILE.includes(page) && page !== 'pessoa' ? 'on' : ''} onClick={() => setMore((m) => !m)}>
-          <span className="nav-i"><Icon name="more" /></span>
-          <small>Mais</small>
-        </button>
-      </nav>
-      {more && (
-        <>
-          <div className="menu-backdrop" onClick={() => setMore(false)} />
-          <div className="sheet">
-            {NAV.filter(([k]) => !MOBILE.includes(k)).map(([k, l, i]) => (
-              <a key={k} href={`#/${k}`} onClick={() => setMore(false)}><span className="nav-i"><Icon name={i} /></span>{l}</a>
-            ))}
-            {tools}
-          </div>
-        </>
-      )}
-    </>
-  )
-  const name = shortName(data.settings.profile?.fullName) || data.settings.owner || 'Gestão'
-  const ini = initials(data.settings.profile?.fullName || data.settings.owner || 'RV')
-  const longDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <LayoutCtx.Provider value={{ layout, setLayout }}>
     <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">{ini}</span>
-          <div>
-            <strong>{name}</strong>
-            <small>{data.settings.profile?.profession || 'Engenharia'} · gestão</small>
+      <header className="hdr">
+        <div className="hdr-in">
+          <a className="hdr-brand" href="#/">
+            <span className="brand-mark">{ini}</span>
+            <span className="hdr-brand-t"><b>{name}</b><small>{data.settings.profile?.profession || 'Engenharia'} · gestão</small></span>
+          </a>
+          <nav className="hdr-nav" aria-label="Páginas">
+            {NAV.filter(([k]) => MAIN.includes(k)).map(([k, l, i]) => (
+              <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><Icon name={i} size={17} /><span>{l}</span></a>
+            ))}
+            <div className="new-wrap">
+              <button className={moreOn ? 'on' : ''} onClick={() => setMenu(menu === 'mais' ? '' : 'mais')} aria-haspopup="menu"><Icon name="grid" size={17} /><span>Mais</span><Icon name="chevronDown" size={14} /></button>
+              {menu === 'mais' && (
+                <>
+                  <div className="menu-backdrop" onClick={() => setMenu('')} />
+                  <div className="menu" role="menu">
+                    {MORE.map(([k, l, i, sub]) => <a key={k} href={`#/${k}`}><span className="mi"><Icon name={i} size={18} /></span><span className="mt"><b>{l}</b><small>{sub}</small></span></a>)}
+                  </div>
+                </>
+              )}
+            </div>
+          </nav>
+          <div className="hdr-act">
+            <button className="ai-btn" onClick={() => setChat(true)} aria-label="Assistente" title="Assistente (Gemini)"><Icon name="sparkle" size={19} /><span>Assistente</span></button>
+            <button className="pill-btn hdr-launch" onClick={() => setTx({ kind: 'out' })}><span>Lançar</span><i><Icon name="plus" size={18} /></i></button>
+            <div className="new-wrap">
+              <button className="hdr-me" onClick={() => setMenu(menu === 'eu' ? '' : 'eu')} aria-haspopup="menu" aria-label="Meu menu">{avatar}<i className={`sync-dot ${sync}`} /></button>
+              {menu === 'eu' && <><div className="menu-backdrop" onClick={() => setMenu('')} />{userMenu}</>}
+            </div>
           </div>
         </div>
-        <nav>
-          {GROUPS.map(([g, keys]) => (
-            <div key={g} className="nav-group">
-              <span className="nav-label">{g}</span>
-              {NAV.filter(([k]) => keys.includes(k)).map(([k, l, i]) => (
-                <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}>
-                  <span className="nav-i"><Icon name={i} /></span>
-                  {l}
-                </a>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="side-foot">
-          <a className="me" href="#/perfil">
-            {data.settings.profile?.photo ? <img src={data.settings.profile.photo} alt="" /> : <span className="avatar"><Icon name="user" size={18} /></span>}
-            <span>{name.toLowerCase()}<small>{userEmail || data.settings.profile?.email || 'meu perfil'}</small></span>
-          </a>
-          <div className="sync"><span className={`sync-dot ${sync}`} />{syncText}</div>
-          {tools}
-        </div>
-      </aside>
+      </header>
+      {bars}
+      <main className="content">{content}</main>
 
-      <div className="main">
-        <header className="topbar">
-          <div className="topbar-l"><span className="brand-mark sm">{ini}</span><span className="topbar-date">{longDate}</span></div>
-          {launcher}
-        </header>
-        {bars}
-        <main className="content">{content}</main>
-      </div>
-      {mobile}
+      <nav className="bottomnav" aria-label="Atalhos">
+        {NAV.filter(([k]) => PHONE.slice(0, 2).includes(k)).map(([k, l, i]) => <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><span className="nav-i"><Icon name={i} /></span><small>{l}</small></a>)}
+        <button className="fab" onClick={() => setTx({ kind: 'out' })} aria-label="Lançar"><Icon name="plus" size={26} /></button>
+        {NAV.filter(([k]) => PHONE.slice(2).includes(k)).map(([k, l, i]) => <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><span className="nav-i"><Icon name={i} /></span><small>{l}</small></a>)}
+        <button className={menu === 'sheet' || (!PHONE.includes(page) && page !== 'pessoa') ? 'on' : ''} onClick={() => setMenu(menu === 'sheet' ? '' : 'sheet')}><span className="nav-i"><Icon name="grid" /></span><small>Mais</small></button>
+      </nav>
+      {menu === 'sheet' && (
+        <>
+          <div className="menu-backdrop" onClick={() => setMenu('')} />
+          <div className="sheet">
+            <div className="sheet-grid">
+              {NAV.filter(([k]) => !PHONE.includes(k)).map(([k, l, i]) => <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><span className="nav-i"><Icon name={i} /></span>{l}</a>)}
+              <a href="#/importar"><span className="nav-i"><Icon name="upload" /></span>Importar</a>
+            </div>
+            {userMenu}
+          </div>
+        </>
+      )}
       {tx && <TxForm initial={tx} onClose={() => setTx(null)} />}
+      {chat && <Assistant onClose={() => setChat(false)} onEditTx={(t) => { setChat(false); setTx(t) }} />}
       {!data.settings.onboarded && !demo && <Onboarding onClose={() => setSettings({ onboarded: true })} />}
     </div>
     </LayoutCtx.Provider>

@@ -1,10 +1,11 @@
+import { Icon } from '../components/Icon'
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { CalEvent, EventKind, Tx } from '../types'
 import { TxForm } from '../components/TxForm'
 import { CLOUD, agendaUrl } from '../cloud'
 import { buildICS } from '../ics'
-import { Field, Modal, confirmDialog, toast } from '../components/ui'
+import { Field, Modal, confirmDialog, toast, PageHead } from '../components/ui'
 import { downloadFile, ownedBy, WEEKDAYS, addDays, addMonth, addMonths, daysBetween, fmtDate, inScope, money, month, monthName, projectName, toDate, today, uid } from '../utils'
 
 const Pin = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" /></svg>
@@ -88,11 +89,7 @@ export function Agenda() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">compromissos, contas e prazos</span>
-          <h1 className="duo">Sua <em>agenda</em></h1>
-        </div>
+      <PageHead eyebrow="compromissos, contas e prazos" title="Sua" accent="agenda" text="Visitas, reuniões, contas que vencem e prazos das obras — e tudo vai para o calendário do celular.">
         <div className="ag-top">
           <div className="qtx-paid" role="radiogroup" aria-label="Como ver">
             <button className={mode === 'dias' ? 'on' : ''} onClick={() => setMode('dias')}>Próximos dias</button>
@@ -100,7 +97,7 @@ export function Agenda() {
           </div>
           <button className="fab-sm" onClick={() => setEdit({ date: day })} aria-label="Novo compromisso" title="Novo compromisso">+</button>
         </div>
-      </div>
+      </PageHead>
       {mode === 'dias' && (
         <div className="sk-days">
           {Array.from({ length: 21 }, (_, i) => addDays(today(), i)).map((d) => ({ d, list: on(d).filter((it) => it.type !== 'event' || !it.ev.done) })).filter(({ d, list }) => list.length || d === today()).map(({ d, list }) => (
@@ -141,9 +138,9 @@ export function Agenda() {
       {mode === 'mes' && <div className="agenda">
         <section className="card flush">
           <div className="month-nav pad">
-            <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+            <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior"><Icon name="chevronLeft" size={18} /></button>
             <strong>{monthName(ym)}</strong>
-            <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+            <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês"><Icon name="chevron" size={18} /></button>
             <button className="btn small" onClick={() => { setYm(month(today())); setDay(today()) }}>Hoje</button>
             <span style={{ flex: 1 }} />
             <label className="check small"><input type="checkbox" checked={showMoney} onChange={(e) => setShowMoney(e.target.checked)} /> mostrar contas</label>

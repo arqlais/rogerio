@@ -35,7 +35,16 @@ const P: Record<string, string> = {
   help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
   upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  chevronDown: 'M6 9l6 6 6-6',
+  chevronLeft: 'M15 18l-6-6 6-6',
+  x: 'M18 6 6 18M6 6l12 12',
+  send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
+  image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21',
+  undo: 'M3 7v6h6M21 17a9 9 0 0 0-15-6.7L3 13',
   star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z',
+  mic: 'M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 11a7 7 0 0 1-14 0M12 18v4',
+  bolt: 'M13 2 3 14h9l-1 8 10-12h-9z',
 }
 
 export function Icon({ name, size = 20, stroke = 2, className }: { name: keyof typeof P | string; size?: number; stroke?: number; className?: string }) {

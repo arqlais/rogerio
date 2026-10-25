@@ -41,8 +41,9 @@ try {
 
   await page.fill('input[type=password]', 'senha123')
   await page.locator('.auth-submit').click()
-  await page.waitForSelector('.sidebar', { timeout: 30000 })
+  await page.waitForSelector('.hdr', { timeout: 30000 })
   ok(true, 'entra com e-mail e senha')
+  if (await page.locator('.onb').count()) { await page.getByRole('button', { name: 'fazer depois' }).click(); await page.waitForTimeout(300) }
   await page.waitForTimeout(1500)
   const meta = await asOwner(`engenharia/${u1.localId}`)
   ok(meta.fields?.parts?.integerValue >= 1, 'primeiro acesso grava os dados no Firestore')
@@ -53,14 +54,14 @@ try {
   await page.fill('input[aria-label="Seu nome"]', 'Rogério Nuvem')
   await page.waitForTimeout(2000)
   await page.reload()
-  await page.waitForSelector('.sidebar')
+  await page.waitForSelector('.hdr')
   await page.evaluate(() => (location.hash = '#/config'))
   await page.waitForTimeout(500)
   ok(await page.inputValue('input[aria-label="Seu nome"]') === 'Rogério Nuvem', 'alteração fica salva na nuvem (continua logado ao recarregar)')
   // o que vale é a nuvem: apaga o navegador e confere de novo
   await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('rogerio-gestao')) localStorage.removeItem(k) })
   await page.reload()
-  await page.waitForSelector('.sidebar')
+  await page.waitForSelector('.hdr')
   await page.evaluate(() => (location.hash = '#/config'))
   await page.waitForTimeout(500)
   ok(await page.inputValue('input[aria-label="Seu nome"]') === 'Rogério Nuvem', 'dados vêm da nuvem mesmo sem nada no navegador')
@@ -68,7 +69,7 @@ try {
   // anexo de 2 MB (vários pedaços) num orçamento
   await page.evaluate(() => (location.hash = '#/orcamentos'))
   await page.waitForTimeout(300)
-  await page.getByRole('button', { name: '+ Orçamento para escola (PDDE)' }).click()
+  await page.getByRole('button', { name: 'Orçamento para escola', exact: true }).click()
   await page.locator('.pick-co button').first().click()
   await page.waitForTimeout(500)
   const big = Buffer.alloc(2_000_000, 7)
@@ -114,7 +115,7 @@ try {
   const anon = await fetch(`${FS}/engenharia/${u1.localId}/dados/0`)
   ok(anon.status === 403, 'sem login não consegue ler os dados')
 
-  await page.locator('.sidebar [aria-label="Sair"]').click()
+  await page.locator('.hdr-me').click(); await page.locator('.me-menu [aria-label="Sair"]').click()
   await page.getByRole('button', { name: 'Sair', exact: true }).last().click()
   await page.waitForSelector('.auth-form')
   ok(true, 'sair volta para o login')

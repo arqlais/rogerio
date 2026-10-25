@@ -8,7 +8,7 @@ import { printReceipt } from '../components/Receipt'
 import { ContractTable } from './Projects'
 import { readLogo } from './Registry'
 import { Icon } from '../components/Icon'
-import { Badge, Empty, Field, Modal, MoneyInput, NumInput, Stat, Tabs, confirmDialog, toast } from '../components/ui'
+import { Badge, Empty, Field, Modal, MoneyInput, NumInput, Stat, Tabs, confirmDialog, toast, PageHead } from '../components/ui'
 import { ROLE_LABEL, WEEKDAYS, addDays, addMonth, fmtDate, fmtDateShort, money, month, monthName, num, projectName, today, uid, weekStart } from '../utils'
 
 type T = 'diarias' | 'folha' | 'empreitadas' | 'pessoas'
@@ -17,7 +17,7 @@ export function Team({ tab }: { tab?: string }) {
   const t = (['diarias', 'folha', 'empreitadas', 'pessoas'].includes(tab ?? '') ? tab : 'diarias') as T
   return (
     <div className="page">
-      <div className="page-head"><h1>Equipe</h1></div>
+      <PageHead eyebrow="quem trabalha com você" title="Sua" accent="equipe" text="Marque as diárias, pague a semana, lance salários e acompanhe as empreitadas." />
       <Tabs value={t} onChange={(v) => go(`/equipe/${v}`)} items={[['diarias', 'Diárias'], ['folha', 'Fixos (salários)'], ['empreitadas', 'Empreitadas'], ['pessoas', 'Pessoas']]} />
       {t === 'diarias' && <Daily />}
       {t === 'folha' && <Payroll />}
@@ -94,9 +94,9 @@ function Daily() {
     <>
       <div className="help">Escolha a obra e toque no dia de cada diarista: <b>1 toque = dia inteiro</b>, <b>2 = meio dia</b>, <b>3 = apaga</b>. No fim da semana, toque em <b>Pagar</b> — o valor vai para o financeiro da obra e sai o recibo.</div>
       <div className="month-nav">
-        <button className="icon-btn" onClick={() => setWs(addDays(ws, -7))} aria-label="Semana anterior">‹</button>
+        <button className="icon-btn" onClick={() => setWs(addDays(ws, -7))} aria-label="Semana anterior"><Icon name="chevronLeft" size={18} /></button>
         <strong>{fmtDateShort(ws)} a {fmtDateShort(end)}</strong>
-        <button className="icon-btn" onClick={() => setWs(addDays(ws, 7))} aria-label="Próxima semana">›</button>
+        <button className="icon-btn" onClick={() => setWs(addDays(ws, 7))} aria-label="Próxima semana"><Icon name="chevron" size={18} /></button>
         <button className="btn small" onClick={() => setWs(weekStart(today(), data.settings.weekStart))}>Esta semana</button>
         <span style={{ flex: 1 }} />
         <label className="inline-field">Obra:
@@ -193,9 +193,9 @@ function Payroll() {
     <>
       <div className="help">Todo mês, toque em <b>Lançar salários</b>: o sistema desconta os vales do mês e coloca o salário em "A pagar" para o dia {data.settings.payday} do mês seguinte (e os encargos, se informados no cadastro).</div>
       <div className="month-nav">
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior">‹</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, -1))} aria-label="Mês anterior"><Icon name="chevronLeft" size={18} /></button>
         <strong>Salários de {monthName(ym)}</strong>
-        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês">›</button>
+        <button className="icon-btn" onClick={() => setYm(addMonth(ym, 1))} aria-label="Próximo mês"><Icon name="chevron" size={18} /></button>
         <span style={{ flex: 1 }} />
         {pending.length > 0 && <button className="btn primary" onClick={launchAll}>Lançar salários ({pending.length})</button>}
       </div>
