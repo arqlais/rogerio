@@ -29,7 +29,7 @@ export function PricingPage({ tab = 'calculo' }: { tab?: string }) {
   const bdi = bdiOf(p)
   return (
     <div className="page">
-      <PageHead eyebrow={`BDI atual ${pct(bdi)} · ${p.services.length} serviços · ${p.inputs.length} insumos`} title="Tabela" accent="de preços" text="Calcule o preço de cada serviço com material, mão de obra e BDI, e transforme em orçamento." />
+      <PageHead eyebrow={`BDI atual ${pct(bdi)} · ${p.services.length} serviços · ${p.inputs.length} insumos`} title="Tabela" accent="de preços" />
       <Tabs value={t} onChange={(v) => go(`/precos/${v}`)} items={[['calculo', 'Calcular obra'], ['servicos', 'Serviços', p.services.length], ['insumos', 'Materiais e diárias'], ['bdi', 'BDI e encargos'], ['m2', 'Estimativa por m²']]} />
       {t === 'calculo' && <Calc />}
       {t === 'servicos' && <Services />}

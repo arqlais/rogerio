@@ -20,7 +20,7 @@ export function Finance({ onNewTx }: { onNewTx?: (t: Partial<Tx>) => void }) {
   const pessoal = data.entities.find((e) => e.kind === 'pessoal')
   return (
     <div className="page">
-      <PageHead eyebrow="dinheiro da empresa e pessoal" title="Seu" accent="financeiro" text="O que pagar, o que receber, para onde foi o dinheiro e as notas fiscais.">
+      <PageHead eyebrow="dinheiro da empresa e pessoal" title="Seu" accent="financeiro">
         <div className="row wrap">
           <button className="btn" onClick={() => setTx({ kind: 'transfer' })}><Icon name="swap" size={16} /> Transferir</button>
           <button className="btn" onClick={() => setTx({ kind: 'in' })}><Icon name="arrowUp" size={16} /> Entrou</button>

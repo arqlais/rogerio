@@ -11,7 +11,7 @@ export function Registry({ tab }: { tab?: string }) {
   const t = tab === 'categorias' ? 'categorias' : 'empresas'
   return (
     <div className="page">
-      <PageHead eyebrow="CNPJs, contas e categorias" title="Empresas" accent="e contas" text="Os dados de cada empresa (logo, CNPJ, endereço, banco) aparecem nos orçamentos e recibos." />
+      <PageHead eyebrow="CNPJs, contas e categorias" title="Empresas" accent="e contas" />
       <Tabs value={t} onChange={(v) => go(`/cadastros/${v}`)} items={[['empresas', 'Empresas, pessoal e contas'], ['categorias', 'Categorias']]} />
       {t === 'empresas' ? <Entities /> : <Categories />}
     </div>

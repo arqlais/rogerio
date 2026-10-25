@@ -22,7 +22,7 @@ export function Projects() {
     .filter((p) => (status === 'todas' ? true : status === 'concluida' ? p.status === 'concluida' : p.status !== 'concluida'))
   return (
     <div className="page">
-      <PageHead eyebrow="reformas, construções e o prédio" title="Suas" accent="obras" text="Quanto cada obra já custou, quanto falta receber e o que está previsto.">
+      <PageHead eyebrow="reformas, construções e o prédio" title="Suas" accent="obras">
         <button className="pill-btn" onClick={() => setEdit({})}><span>Nova obra</span><i><Icon name="plus" size={18} /></i></button>
       </PageHead>
       <div className="seg compact">

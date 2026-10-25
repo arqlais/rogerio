@@ -104,7 +104,7 @@ function QuoteList() {
 
   return (
     <div className="page">
-      <PageHead eyebrow="no papel timbrado de cada empresa" title="Seus" accent="orçamentos" text="Escolha a empresa, a escola ou o cliente, preencha os serviços (ou peça ao assistente) e baixe o PDF pronto.">
+      <PageHead eyebrow="no papel timbrado de cada empresa" title="Seus" accent="orçamentos">
         <div className="row wrap">
           <a className="btn ghost" href="#/precos"><Icon name="calc" size={16} /> Tabela de preços</a>
           <button className="btn" onClick={() => create('padrao')}>Orçamento comum</button>

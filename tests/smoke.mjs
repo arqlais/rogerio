@@ -53,8 +53,8 @@ try {
       await page.locator('.hdr-me').click(); await page.locator('.me-menu [aria-label="Exemplo preenchido"]').click()
     } else {
       await page.getByRole('button', { name: 'fazer depois' }).click(); await page.waitForTimeout(200)
-      ok(await page.getByText('Sua plataforma está').count() > 0, `${vp.name}: tela de boas-vindas quando está vazio`)
-      await page.getByText('Ver um exemplo preenchido').click()
+      ok(await page.getByText('Vamos').count() > 0, `${vp.name}: tela de boas-vindas quando está vazio`)
+      await page.getByRole('button', { name: 'Ver exemplo', exact: true }).click()
     }
     await page.waitForTimeout(400)
     ok((await stored())?.projects.length === 2, `${vp.name}: exemplo preenchido aparece`)
@@ -208,7 +208,8 @@ try {
     await page.locator('.view-switch button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
     ok((await stored()).settings.scope === 'empresa' && await page.locator('.scope-seg').count() === 0, `${vp.name}: sem seletor manual no topo; Empresa junta todos os CNPJs`)
     await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
-    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.hero-stats button').count() === 3 && await page.locator('.sched').count() === 1 && await page.locator('.split-row').count() === 2, `${vp.name}: início com resumo, atalhos, agenda e empresa × pessoal`)
+    ok(await page.locator('.act-btn').count() === 4 && await page.locator('.hero-stats button').count() === 3 && await page.locator('.sched').count() === 1 && await page.locator('.todo').count() === 1, `${vp.name}: início simples com resumo, 4 ações, agenda e atenção`)
+    if (!desk) { const nav = await page.locator('.bottomnav').boundingBox(); const fab = await page.locator('.fab').boundingBox(); ok(Math.abs((fab.x + fab.width / 2) - (nav.x + nav.width / 2)) < 2, `${vp.name}: + exatamente no centro da barra`) }
     // importar planilha
     await go('#/importar')
     const tx7 = (await stored()).txs.length

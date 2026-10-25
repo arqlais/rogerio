@@ -89,7 +89,7 @@ export function Agenda() {
 
   return (
     <div className="page">
-      <PageHead eyebrow="compromissos, contas e prazos" title="Sua" accent="agenda" text="Visitas, reuniões, contas que vencem e prazos das obras — e tudo vai para o calendário do celular.">
+      <PageHead eyebrow="compromissos, contas e prazos" title="Sua" accent="agenda">
         <div className="ag-top">
           <div className="qtx-paid" role="radiogroup" aria-label="Como ver">
             <button className={mode === 'dias' ? 'on' : ''} onClick={() => setMode('dias')}>Próximos dias</button>

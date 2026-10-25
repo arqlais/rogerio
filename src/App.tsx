@@ -47,8 +47,8 @@ const MORE: [string, string, string, string][] = [
   ['cadastros', 'Empresas e contas', 'briefcase', 'CNPJs, logos, bancos'],
   ['config', 'Ajustes', 'settings', 'assistente, backup, agenda'],
 ]
-// no celular: 2 atalhos + botão Lançar + 2 atalhos + "Mais"
-const PHONE = ['', 'financeiro', 'orcamentos', 'agenda']
+// no celular: 2 atalhos | + (centro) | Orçamentos e "Mais"
+const PHONE = ['', 'financeiro', 'orcamentos']
 
 export default function App() {
   return (
@@ -128,11 +128,11 @@ function Shell() {
             <span className="hdr-brand-t"><b>{name}</b><small>{data.settings.profile?.profession || 'Engenharia'} · gestão</small></span>
           </a>
           <nav className="hdr-nav" aria-label="Páginas">
-            {NAV.filter(([k]) => MAIN.includes(k)).map(([k, l, i]) => (
-              <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><Icon name={i} size={17} /><span>{l}</span></a>
+            {NAV.filter(([k]) => MAIN.includes(k)).map(([k, l]) => (
+              <a key={k} href={`#/${k}`} className={isOn(k) ? 'on' : ''}><span>{l}</span></a>
             ))}
             <div className="new-wrap">
-              <button className={moreOn ? 'on' : ''} onClick={() => setMenu(menu === 'mais' ? '' : 'mais')} aria-haspopup="menu"><Icon name="grid" size={17} /><span>Mais</span><Icon name="chevronDown" size={14} /></button>
+              <button className={moreOn ? 'on' : ''} onClick={() => setMenu(menu === 'mais' ? '' : 'mais')} aria-haspopup="menu"><span>Mais</span><Icon name="chevronDown" size={14} /></button>
               {menu === 'mais' && (
                 <>
                   <div className="menu-backdrop" onClick={() => setMenu('')} />

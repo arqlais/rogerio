@@ -17,7 +17,7 @@ export function Team({ tab }: { tab?: string }) {
   const t = (['diarias', 'folha', 'empreitadas', 'pessoas'].includes(tab ?? '') ? tab : 'diarias') as T
   return (
     <div className="page">
-      <PageHead eyebrow="quem trabalha com você" title="Sua" accent="equipe" text="Marque as diárias, pague a semana, lance salários e acompanhe as empreitadas." />
+      <PageHead eyebrow="quem trabalha com você" title="Sua" accent="equipe" />
       <Tabs value={t} onChange={(v) => go(`/equipe/${v}`)} items={[['diarias', 'Diárias'], ['folha', 'Fixos (salários)'], ['empreitadas', 'Empreitadas'], ['pessoas', 'Pessoas']]} />
       {t === 'diarias' && <Daily />}
       {t === 'folha' && <Payroll />}
