@@ -15,7 +15,7 @@ export function Attachments({ files = [], onChange, label = 'Anexar arquivo', hi
     const added: FileRef[] = []
     for (const f of Array.from(list)) {
       if (f.size > 20e6) { toast(`${f.name}: arquivo maior que 20 MB`, 'err'); continue }
-      try { added.push(await uploadFile(f)) } catch (e) { console.error(e); toast(`Não consegui anexar ${f.name}`, 'err') }
+      try { added.push(await uploadFile(f)) } catch (e) { console.error(e); toast(`Não consegui anexar ${f.name}${String((e as Error)?.message).includes('25 MB') ? ' (passa de 25 MB)' : ''}`, 'err') }
     }
     setBusy(false)
     if (added.length) { onChange([...files, ...added]); toast(added.length > 1 ? `${added.length} arquivos anexados` : 'Arquivo anexado') }

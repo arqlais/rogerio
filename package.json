@@ -17,6 +17,7 @@
     "@fontsource/arimo": "^5.3.0",
     "@fontsource/carlito": "^5.3.0",
     "@supabase/supabase-js": "^2.117.2",
+    "firebase": "^13.1.0",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "react": "^19.3.0",
