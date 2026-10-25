@@ -31,7 +31,7 @@ export function Clients() {
 
   return (
     <div className="page">
-      <PageHead eyebrow={`${active} cliente${active === 1 ? '' : 's'} ativo${active === 1 ? '' : 's'}`} title="Clientes" accent="e escolas" text="Cadastre uma vez e escolha direto no orçamento: o nome e o CNPJ da APM entram sozinhos.">
+      <PageHead eyebrow={`${active} cliente${active === 1 ? '' : 's'} ativo${active === 1 ? '' : 's'}`} title="Clientes" accent="e escolas">
         <button className="pill-btn" onClick={() => setEdit({ kind: 'escola' })}><span>Novo cliente</span><i><Icon name="plus" size={18} /></i></button>
       </PageHead>
       <div className="filters">

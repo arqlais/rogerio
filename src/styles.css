@@ -1998,3 +1998,46 @@ h2.duo { font-size: 21px; }
   .hero-stats span { font-size: 13px; }
   .cmd-btn b { font-family: 'Montserrat Variable', sans-serif; font-size: 14px; font-weight: 800; overflow-wrap: normal; letter-spacing: -0.01em; }
 }
+
+/* =====================================================================
+   v8 · simplificação: menos coisas na tela, + centralizado no celular
+   ===================================================================== */
+.page-head::after { display: none; }
+.ph-ref { padding-bottom: 6px; }
+.ph-ref h1.duo { font-size: clamp(30px, 3vw, 40px); }
+.hero { padding: 30px 32px 40px; }
+.hero-title { font-size: clamp(32px, 3.6vw, 44px); margin: 10px 0 0; }
+.hero-in { grid-template-columns: minmax(0, 1fr) auto; }
+.hero-stats { flex-direction: row; gap: 4px; padding: 8px; }
+.hero-stats button { padding: 10px 16px; }
+.hero-stats strong { font-size: 22px; }
+
+/* 4 ações grandes */
+.acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.act-btn { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 20px; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow); font-weight: 700; font-size: 16px; color: var(--ink); text-align: left; }
+.act-btn:hover { border-color: var(--accent); }
+.act-btn > span { width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; flex-shrink: 0; background: var(--info-soft); color: var(--info); }
+.act-btn.q0 > span { background: var(--bad-soft); color: var(--bad); }
+.act-btn.q1 > span { background: var(--good-soft); color: var(--good); }
+.act-btn.q2 > span, .act-btn.q3 > span { background: var(--accent-soft); color: var(--accent-ink); }
+.home-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.sched .sched-days { margin-bottom: 12px; }
+.todo-row > .ic:last-child { color: var(--muted); flex-shrink: 0; }
+
+/* barra de baixo: 2 | + | 2, com o + exatamente no centro */
+@media (max-width: 760px) {
+  .bottomnav { display: grid !important; grid-template-columns: 1fr 1fr 76px 1fr 1fr; align-items: end; }
+  .bottomnav > a, .bottomnav > button:not(.fab) { width: auto; }
+  .bottomnav .fab { justify-self: center; margin: -26px 0 8px; }
+  .hero { padding: 22px 18px 30px; }
+  .hero-in { grid-template-columns: 1fr; gap: 16px; }
+  .hero-stats { flex-direction: column; }
+  .acts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .act-btn { flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; font-size: 15px; }
+  .home-grid { grid-template-columns: 1fr; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .hero-in { grid-template-columns: 1fr; }
+  .acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-grid { grid-template-columns: 1fr; }
+}

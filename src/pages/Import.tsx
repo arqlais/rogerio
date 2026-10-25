@@ -170,7 +170,7 @@ export function ImportPage() {
 
   return (
     <div className="page">
-      <PageHead eyebrow="trazer o que já está anotado" title="Importar" accent="planilha" text="Escolha o arquivo, confira as colunas e importe. Empresa e pessoal já vêm separados." />
+      <PageHead eyebrow="trazer o que já está anotado" title="Importar" accent="planilha" />
 
       <label className={`imp-drop ${busy ? 'busy' : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); open(e.dataTransfer.files[0]) }}>
         <Icon name="upload" size={28} />
