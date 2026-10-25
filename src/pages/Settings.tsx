@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useStore, emptyData } from '../store'
+import { importFromSupabase } from '../migrate'
 import { CLOUD } from '../cloud'
 import { signOut } from '../App'
-import { Field, NumInput, confirmDialog, toast } from '../components/ui'
+import { Field, Modal, NumInput, confirmDialog, toast } from '../components/ui'
 import { downloadFile, today } from '../utils'
 import type { Data } from '../types'
 
@@ -28,6 +30,21 @@ export function SettingsPage() {
     toast('Tudo apagado')
   }
   const sample = () => setDemo(!demo)
+  const [old, setOld] = useState<{ email: string; password: string; step: string } | null>(null)
+  const importOld = async () => {
+    if (!old) return
+    if (!(await confirmDialog('Trazer os dados do sistema antigo? Tudo o que está cadastrado agora será substituído (faça um backup antes, se quiser guardar).', 'Trazer dados'))) return
+    try {
+      const d = await importFromSupabase(old.email.trim(), old.password, (step) => setOld((o) => (o ? { ...o, step } : o)))
+      if (!d) { setOld((o) => (o ? { ...o, step: '' } : o)); return toast('Não há dados nesse login do sistema antigo', 'err') }
+      replaceAll(d)
+      setOld(null)
+      toast('Dados do sistema antigo trazidos')
+    } catch (e) {
+      setOld((o) => (o ? { ...o, step: '' } : o))
+      toast(String((e as Error).message), 'err')
+    }
+  }
 
   return (
     <div className="page narrow">
@@ -50,6 +67,7 @@ export function SettingsPage() {
         <div className="row wrap">
           <button className="btn" onClick={backup}>Baixar backup</button>
           <label className="btn">Restaurar backup<input type="file" accept="application/json" hidden onChange={(e) => restore(e.target.files?.[0])} /></label>
+          {CLOUD && !demo && <button className="btn" onClick={() => setOld({ email: userEmail ?? '', password: '', step: '' })}>Trazer dados do sistema antigo</button>}
           {CLOUD && <button className="btn" onClick={() => signOut()}>Sair</button>}
         </div>
       </section>
@@ -61,6 +79,15 @@ export function SettingsPage() {
           {!demo && <button className="btn danger" onClick={reset}>Apagar tudo e começar do zero</button>}
         </div>
       </section>
+      {old && (
+        <Modal title="Trazer dados do sistema antigo" onClose={() => setOld(null)} footer={<><span style={{ flex: 1 }} /><button className="btn" onClick={() => setOld(null)}>Cancelar</button><button className="btn primary" disabled={!!old.step || !old.password} onClick={importOld}>{old.step || 'Trazer'}</button></>}>
+          <p className="muted small" style={{ marginTop: 0 }}>Use o e-mail e a senha que você usava antes da mudança. Os dados e as notas anexadas são copiados para cá.</p>
+          <div className="grid-form">
+            <Field label="E-mail"><input type="email" value={old.email} onChange={(e) => setOld({ ...old, email: e.target.value })} aria-label="E-mail antigo" /></Field>
+            <Field label="Senha"><input type="password" value={old.password} onChange={(e) => setOld({ ...old, password: e.target.value })} aria-label="Senha antiga" /></Field>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

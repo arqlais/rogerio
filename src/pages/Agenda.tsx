@@ -198,7 +198,7 @@ function PhoneSync() {
     setBusy(true)
     const ok = await publishAgendaNow(t)
     setBusy(false)
-    if (!ok) return toast('Não consegui criar o link. Confira se o SQL do Supabase foi rodado (ele cria a pasta "agenda").', 'err')
+    if (!ok) return toast('Não consegui criar o link. No Firebase, o Storage precisa estar ativado (plano Blaze) e com as regras da agenda.', 'err')
     setSettings({ calendarToken: t })
     toast('Agenda ligada! Agora adicione o link no celular.')
   }

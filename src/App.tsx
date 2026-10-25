@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { CLOUD, supabase } from './cloud'
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut as fbSignOut, type User } from 'firebase/auth'
+import { CLOUD, auth } from './cloud'
+import { rememberLogin } from './migrate'
 import { ARTIFACT } from './env'
 import { confirmDialog, toast } from './components/ui'
 import { StoreProvider, useStore } from './store'
@@ -213,29 +214,28 @@ function Shell() {
 
 // ---------- login (só quando a nuvem está ligada) ----------
 function AuthGate({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null | undefined>(CLOUD ? undefined : null)
-  const [recovery, setRecovery] = useState(false)
-  useEffect(() => {
-    if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((e, s) => {
-      if (e === 'PASSWORD_RECOVERY') setRecovery(true)
-      setSession(s)
-    })
-    return () => data.subscription.unsubscribe()
-  }, [])
+  const [user, setUser] = useState<User | null | undefined>(CLOUD ? undefined : null)
+  useEffect(() => (auth ? onAuthStateChanged(auth, setUser) : undefined), [])
   if (!CLOUD) return <StoreProvider>{children}</StoreProvider>
-  if (session === undefined) return <div className="center-screen"><div className="spinner" /></div>
-  if (!session) return <Login />
-  if (recovery) return <NewPassword onDone={() => setRecovery(false)} />
+  if (user === undefined) return <div className="center-screen"><div className="spinner" /></div>
+  if (!user) return <Login />
   return (
-    <StoreProvider key={session.user.id} userId={session.user.id} userEmail={session.user.email ?? ''}>
+    <StoreProvider key={user.uid} userId={user.uid} userEmail={user.email ?? ''}>
       {children}
     </StoreProvider>
   )
 }
 
-export const signOut = () => supabase?.auth.signOut()
+export const signOut = () => (auth ? fbSignOut(auth) : undefined)
+
+const AUTH_ERR: Record<string, string> = {
+  'auth/invalid-credential': 'E-mail ou senha incorretos. Confira e tente de novo.',
+  'auth/wrong-password': 'E-mail ou senha incorretos. Confira e tente de novo.',
+  'auth/user-not-found': 'E-mail ou senha incorretos. Confira e tente de novo.',
+  'auth/invalid-email': 'Esse e-mail não parece certo.',
+  'auth/too-many-requests': 'Muitas tentativas. Espere alguns minutos e tente de novo.',
+  'auth/network-request-failed': 'Sem internet. Confira a conexão e tente de novo.',
+}
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -248,13 +248,18 @@ function Login() {
     e.preventDefault()
     setError('')
     setBusy(true)
-    const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password })
+    try {
+      rememberLogin(email.trim(), password)
+      await signInWithEmailAndPassword(auth!, email.trim(), password)
+    } catch (err) {
+      const code = (err as { code?: string }).code ?? ''
+      setError(AUTH_ERR[code] ?? `Não consegui entrar (${code || String(err)})`)
+    }
     setBusy(false)
-    if (error) setError(error.message.includes('Invalid') ? 'E-mail ou senha incorretos. Confira e tente de novo.' : error.message)
   }
   const forgot = async () => {
     if (!email.trim()) return setError('Digite seu e-mail acima e toque de novo em "esqueci minha senha".')
-    await supabase!.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + location.pathname })
+    try { await sendPasswordResetEmail(auth!, email.trim()) } catch { /* não revela se o e-mail existe */ }
     setInfo('Pronto! Enviamos um link para criar uma senha nova no seu e-mail.')
   }
   return (
@@ -340,29 +345,6 @@ function BuildingDrawing() {
   )
 }
 
-function NewPassword({ onDone }: { onDone: () => void }) {
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (password.length < 6) return setError('Use pelo menos 6 caracteres.')
-    const { error } = await supabase!.auth.updateUser({ password })
-    if (error) return setError(error.message)
-    onDone()
-  }
-  return (
-    <AuthLayout>
-      <form className="auth-form" onSubmit={submit}>
-        <span className="auth-eyebrow">nova senha</span>
-        <h1 className="auth-title"><span>crie</span> sua senha</h1>
-        <label className="auth-field"><span>Nova senha</span><input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
-        {error && <p className="auth-msg err">{error}</p>}
-        <button className="auth-submit">Salvar senha</button>
-      </form>
-    </AuthLayout>
-  )
-}
-
 const initials = (n: string) => { const w = n.trim().split(/\s+/); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase() }
 const shortName = (n?: string) => { if (!n) return ''; const w = n.trim().split(/\s+/); return w.length > 1 ? `${w[0]} ${w[w.length - 1]}` : w[0] }
 
@@ -378,3 +360,4 @@ function useTheme(): ['light' | 'dark', (t: 'light' | 'dark') => void] {
   }, [t])
   return [t, (v) => { setT(v); try { localStorage.setItem('rogerio-tema', v) } catch { /* bloqueado */ } }]
 }
+

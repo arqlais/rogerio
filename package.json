@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "build:artifact": "VITE_ARTIFACT=1 vite build --outDir dist-artifact --emptyOutDir && node scripts/artifact.mjs",
-    "test:smoke": "VITE_LOCAL=1 vite build --outDir dist-test --emptyOutDir && node tests/smoke.mjs dist-test"
+    "test:smoke": "VITE_LOCAL=1 vite build --outDir dist-test --emptyOutDir && node tests/smoke.mjs dist-test",
+    "test:cloud": "VITE_FIREBASE_EMULATOR=1 VITE_FIREBASE_CONFIG='{\"apiKey\":\"demo-key\",\"authDomain\":\"demo-rogerio.firebaseapp.com\",\"projectId\":\"demo-rogerio\",\"storageBucket\":\"demo-rogerio.appspot.com\",\"appId\":\"1:1:web:1\"}' vite build --outDir dist-cloud --emptyOutDir && node tests/cloud.mjs dist-cloud"
   },
   "dependencies": {
     "@fontsource-variable/montserrat": "^5.3.0",

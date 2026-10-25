@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { CLOUD, PROJECT_REF, fetchRemote, publishAgenda, pushRemote } from './cloud'
+import { CLOUD, FIRESTORE_RULES, PROJECT_ID, fetchRemote, publishAgenda, pushRemote } from './cloud'
+import { importFromSupabase, takeLogin } from './migrate'
 import { buildICS } from './ics'
 import { ARTIFACT } from './env'
 import { setFilesUser } from './files'
-import schemaSql from '../supabase/schema.sql?raw'
 import type { Category, Client, Collection, Data, Entity, QuoteTheme, Settings } from './types'
 import { BRAND_ASSETS } from './brandAssets'
 import { defaultPricing } from './pricing'
@@ -288,6 +288,7 @@ export function StoreProvider({ children, userId, userEmail }: { children: React
   const [ready, setReady] = useState(!userId)
   const [sync, setSync] = useState<Sync>(userId ? 'salvando' : 'local')
   const [loadError, setLoadError] = useState('')
+  const [importing, setImporting] = useState('')
   const first = useRef(true)
   const timer = useRef<number | undefined>(undefined)
 
@@ -302,7 +303,18 @@ export function StoreProvider({ children, userId, userEmail }: { children: React
           setData(normalize(r.data))
           localStorage.setItem(META, r.updatedAt)
         } else {
-          await pushRemote(userId, loadLocal() ?? emptyData())
+          // primeiro acesso no Firebase: traz os dados do sistema antigo (Supabase), se houver
+          const login = takeLogin()
+          let start: Data | null = null
+          if (login) {
+            setImporting('Trazendo seus dados do sistema antigo…')
+            try { const old = await importFromSupabase(login.email, login.password, setImporting); if (old) start = normalize(old) } catch (e) { console.warn(e) }
+            setImporting('')
+          }
+          start ??= loadLocal() ?? emptyData()
+          await pushRemote(userId, start)
+          if (!alive) return
+          setData(start)
         }
         setSync('salvo')
         setReady(true)
@@ -371,35 +383,36 @@ export function StoreProvider({ children, userId, userEmail }: { children: React
   const setSettings = useCallback((s: Partial<Settings>) => setCur((d) => ({ ...d, settings: { ...d.settings, ...s } })), [setCur])
 
   if (loadError) return <CloudSetup error={loadError} />
+  if (importing) return <div className="center-screen"><div className="card setup"><div className="spinner" /><p>{importing}</p><p className="muted small">Só acontece uma vez. Não feche a página.</p></div></div>
   if (!ready) return <div className="center-screen"><div className="spinner" /></div>
 
   return <Ctx.Provider value={{ data: cur, update, save, saveMany, remove, replaceAll, setSettings, sync, savedAt, userEmail, userId, publishAgendaNow, demo, setDemo, resetDemo }}>{children}</Ctx.Provider>
 }
 
-/** Tela quando a tabela ainda não existe no Supabase: mostra o SQL pronto para copiar. */
+/** Tela quando as regras do Firestore ainda não foram coladas: mostra o texto pronto para copiar. */
 function CloudSetup({ error }: { error: string }) {
   const [copied, setCopied] = useState(false)
-  const missing = /schema cache|does not exist|relation/i.test(error)
+  const missing = /permission|insufficient/i.test(error)
   const copy = async () => {
-    try { await navigator.clipboard.writeText(schemaSql); setCopied(true) } catch { /* seleciona o texto abaixo */ }
+    try { await navigator.clipboard.writeText(FIRESTORE_RULES); setCopied(true) } catch { /* seleciona o texto abaixo */ }
   }
   return (
     <div className="center-screen">
       <div className="card setup">
-        <h2>{missing ? 'Falta um passo no Supabase (uma vez só)' : 'Não consegui abrir os dados na nuvem'}</h2>
+        <h2>{missing ? 'Falta um passo no Firebase (uma vez só)' : 'Não consegui abrir os dados na nuvem'}</h2>
         {missing ? (
           <ol>
-            <li>Clique em <b>Copiar SQL</b>.</li>
-            <li>Abra o <a className="link" href={`https://supabase.com/dashboard/project/${PROJECT_REF}/sql/new`} target="_blank" rel="noreferrer">SQL Editor do Supabase</a> (projeto <b>{PROJECT_REF}</b>), cole e clique em <b>Run</b>.</li>
+            <li>Clique em <b>Copiar regras</b>.</li>
+            <li>Abra as <a className="link" href={`https://console.firebase.google.com/project/${PROJECT_ID}/firestore/rules`} target="_blank" rel="noreferrer">regras do Firestore</a> (projeto <b>{PROJECT_ID}</b>), apague o que estiver lá, cole e clique em <b>Publicar</b>.</li>
             <li>Volte aqui e clique em <b>Tentar de novo</b>.</li>
           </ol>
         ) : <p className="muted">Verifique a internet e tente de novo.</p>}
         <p className="muted small">Detalhe: {error}</p>
         <div className="row wrap">
-          {missing && <button className="btn" onClick={copy}>{copied ? 'Copiado ✓' : 'Copiar SQL'}</button>}
+          {missing && <button className="btn" onClick={copy}>{copied ? 'Copiado ✓' : 'Copiar regras'}</button>}
           <button className="btn primary" onClick={() => location.reload()}>Tentar de novo</button>
         </div>
-        {missing && <textarea className="sql" readOnly value={schemaSql} onFocus={(e) => e.target.select()} aria-label="SQL para rodar no Supabase" />}
+        {missing && <textarea className="sql" readOnly value={FIRESTORE_RULES} onFocus={(e) => e.target.select()} aria-label="Regras do Firestore" />}
       </div>
     </div>
   )

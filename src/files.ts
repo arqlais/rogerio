@@ -30,7 +30,6 @@ async function idbDo<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDB
   })
 }
 
-const safe = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_').slice(-80)
 
 const toBase64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
   const r = new FileReader()

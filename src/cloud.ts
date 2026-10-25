@@ -1,8 +1,10 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { collection, doc, getDoc, getDocs, getFirestore, writeBatch } from 'firebase/firestore'
-import { deleteObject, getStorage, listAll, ref, uploadString } from 'firebase/storage'
+import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import { collection, connectFirestoreEmulator, doc, getDoc, getDocs, getFirestore, writeBatch } from 'firebase/firestore'
+import { connectStorageEmulator, deleteObject, getStorage, listAll, ref, uploadString } from 'firebase/storage'
 import type { Data } from './types'
+import FIRESTORE_RULES from '../firebase/firestore.rules?raw'
+import STORAGE_RULES from '../firebase/storage.rules?raw'
 import { ARTIFACT } from './env'
 
 /* Nuvem (Firebase): login com e-mail e senha + os dados do usuário no Firestore,
@@ -25,6 +27,13 @@ const app = CLOUD ? initializeApp(config) : null
 export const auth = app ? getAuth(app) : null
 export const db = app ? getFirestore(app) : null
 const storage = app && config.storageBucket ? getStorage(app) : null
+// testes automáticos: VITE_FIREBASE_EMULATOR=1 usa o Firebase local (emuladores)
+const EMU = import.meta.env.VITE_FIREBASE_EMULATOR === '1'
+if (EMU && auth && db) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', 8080)
+  if (storage) connectStorageEmulator(storage, '127.0.0.1', 9199)
+}
 
 /* Os dados ficam em engenharia/{usuário} (data da última gravação) e, em pedaços de texto,
    em engenharia/{usuário}/dados/{n}: assim não esbarra no limite de 1 MB por documento. */
@@ -59,7 +68,7 @@ export async function pushRemote(userId: string, payload: Data): Promise<string>
 /* Agenda do celular: arquivo .ics num endereço secreto (Firebase Storage, leitura pública só do arquivo). */
 const agendaPath = (userId: string, token: string) => `agenda/${userId}/${token}.ics`
 export const agendaUrl = (userId: string, token: string) =>
-  `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${encodeURIComponent(agendaPath(userId, token))}?alt=media`
+  `${EMU ? 'http://127.0.0.1:9199' : 'https://firebasestorage.googleapis.com'}/v0/b/${config.storageBucket}/o/${encodeURIComponent(agendaPath(userId, token))}?alt=media`
 
 /** Publica (ou, sem token, apaga) a agenda do usuário, removendo links antigos. */
 export async function publishAgenda(userId: string, token: string, ics: string) {
@@ -70,23 +79,5 @@ export async function publishAgenda(userId: string, token: string, ics: string) 
   await uploadString(ref(storage, agendaPath(userId, token)), ics, 'raw', { contentType: 'text/calendar; charset=utf-8', cacheControl: 'public, max-age=60' })
 }
 
-/** Regras do Firestore para colar no console (uma vez só). */
-export const FIRESTORE_RULES = `rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /engenharia/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
-  }
-}`
-
-/** Regras do Storage (só para a agenda do celular). */
-export const STORAGE_RULES = `rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /agenda/{uid}/{file} {
-      allow get: if true;
-      allow list, write: if request.auth != null && request.auth.uid == uid;
-    }
-  }
-}`
+/** Regras para colar no console do Firebase (uma vez só); os mesmos arquivos servem aos testes. */
+export { FIRESTORE_RULES, STORAGE_RULES }

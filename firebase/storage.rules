@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /agenda/{uid}/{file} {
+      allow get: if true;
+      allow list, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

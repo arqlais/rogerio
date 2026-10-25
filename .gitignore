@@ -6,3 +6,6 @@ dist
 dist-test
 dist-artifact
 dist-login
+dist-cloud
+firebase/*.log
+firebase/.firebase
