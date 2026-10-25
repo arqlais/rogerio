@@ -81,7 +81,7 @@ export function CompanyPicker({ title, onPick, onClose }: { title: string; onPic
 
 function QuoteList() {
   const { data, save, setSettings } = useStore()
-  const scope = data.settings.scope
+  const scope = 'all' // obras, agenda e orçamentos mostram tudo (o filtro Empresa/Pessoal é do Financeiro)
   const [status, setStatus] = useState<'' | Quote['status']>('')
   const [q, setQ] = useState('')
   const all = data.quotes.filter((x) => ownedBy(x.entityId, scope))

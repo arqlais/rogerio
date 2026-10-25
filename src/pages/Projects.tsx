@@ -13,7 +13,7 @@ const STATUS_TONE = { orcamento: 'info', andamento: 'good', pausada: 'warn', con
 
 export function Projects() {
   const { data } = useStore()
-  const scope = data.settings.scope
+  const scope = 'all' // obras, agenda e orçamentos mostram tudo (o filtro Empresa/Pessoal é do Financeiro)
   const [edit, setEdit] = useState<Partial<Project> | null>(null)
   const [status, setStatus] = useState<'ativas' | 'todas' | 'concluida'>('ativas')
   const list = data.projects
@@ -58,7 +58,7 @@ export function Projects() {
 export function ProjectForm({ initial, onClose }: { initial: Partial<Project>; onClose: () => void }) {
   const { data, save, saveMany, remove } = useStore()
   const editing = !!initial.id
-  const scope = data.settings.scope
+  const scope = 'all' // obras, agenda e orçamentos mostram tudo (o filtro Empresa/Pessoal é do Financeiro)
   const [p, setP] = useState<Project>(() => ({
     id: uid(), name: '', kind: 'reforma', status: 'andamento', contractValue: 0, budget: 0, start: today(),
     entityId: !isGroup(scope) && data.entities.find((e) => e.id === scope)?.kind === 'empresa' ? scope : data.entities.find((e) => e.kind === 'empresa')?.id ?? '',

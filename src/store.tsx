@@ -26,7 +26,7 @@ export const DEFAULT_CATEGORIES = (): Category[] => [
   cat('Outras receitas', 'in', 'ambos'),
 ]
 
-export const DEFAULT_SETTINGS: Settings = { owner: 'Rogério', scope: 'empresa', payday: 5, weekStart: 1 }
+export const DEFAULT_SETTINGS: Settings = { owner: 'Rogério', scope: 'all', payday: 5, weekStart: 1 }
 const withProfile = (s: Settings): Settings => ({ ...s, profile: { ...DEFAULT_PROFILE, ...(s.profile ?? {}) } })
 
 /** Papel timbrado de cada empresa, medido nos orçamentos originais (pontos da folha A4). */
@@ -87,7 +87,7 @@ export function emptyData(): Data {
     { id: uid(), name: 'Pessoal', kind: 'pessoal', doc: DEFAULT_PROFILE.cpf, color: '#5b6573', favorite: true },
   ]
   return {
-    version: 5,
+    version: 6,
     entities,
     accounts: entities.map((e) => ({ id: uid(), entityId: e.id, name: e.kind === 'pessoal' ? 'Conta pessoal' : `Conta ${e.name}`, initial: 0, initialDate: start })),
     projects: [], units: [], people: [], txs: [], attendance: [], contracts: [], quotes: [], events: [], clients: SCHOOLS(),
@@ -185,6 +185,7 @@ export function sampleData(): Data {
       { id: uid(), description: 'Troca de lâmpadas', unit: 'un', qty: 30, price: 50 },
     ] })
   d.settings.owner = 'Rogério'
+  d.settings.onboarded = true
   d.pricing = defaultPricing()
   return d
 }
@@ -223,6 +224,11 @@ function normalize(raw: Partial<Data>): Data {
   }
   // versão 4 → 5: cadastro de clientes, já com as escolas
   if ((raw.version ?? 1) < 5) raw = { ...raw, version: 5, clients: raw.clients?.length ? raw.clients : SCHOOLS() }
+  // versão 5 → 6: separação automática (sem seletor no topo); quem já usa não vê o passo a passo de novo
+  if ((raw.version ?? 1) < 6) {
+    const used = !!(raw.txs?.length || raw.projects?.length || raw.people?.length || raw.quotes?.length)
+    raw = { ...raw, version: 6, settings: { ...(raw.settings ?? DEFAULT_SETTINGS), scope: 'all', onboarded: raw.settings?.onboarded ?? used } }
+  }
   return {
     ...base,
     ...raw,

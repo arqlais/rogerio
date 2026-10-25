@@ -30,15 +30,35 @@ try {
     await page.evaluate(() => localStorage.clear())
     await page.reload()
     await page.waitForTimeout(500)
-    ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: tela de boas-vindas`)
-    const names = await page.locator('.scope-seg button:visible').allInnerTexts()
-    ok(['Empresa', 'Pessoal', 'Tudo'].every((n) => names.includes(n)), `${vp.name}: topo Empresa / Pessoal / Tudo`)
-
-    // exemplo
-    await page.getByText('Ver a plataforma com dados de exemplo').click()
+    // passo a passo do primeiro acesso
+    ok(await page.locator('.onb').count() === 1, `${vp.name}: passo a passo aparece no primeiro acesso`)
+    const desk = vp.width > 800
+    if (desk) {
+      await page.fill('input[aria-label="Seu nome"]', 'Rogério')
+      const nextStep = async () => { await page.locator('.onb-foot .pill-btn').click(); await page.waitForTimeout(150) }
+      await nextStep()
+      await page.locator('.onb-cos button', { hasText: 'RDL' }).click(); await nextStep()
+      await page.locator('.onb-row.acc input[aria-label^="Saldo"]').first().fill('10.000,00'); await nextStep()
+      await page.getByRole('button', { name: '+ pessoa' }).click()
+      await page.fill('.onb-row.ppl input[aria-label="Nome"]', 'João'); await page.fill('.onb-row.ppl input[aria-label="diária"]', '180'); await nextStep()
+      await page.getByRole('button', { name: '+ obra' }).click()
+      await page.fill('.onb-row.obr input[aria-label="Nome da obra"]', 'Reforma Calvitti'); await nextStep()
+      await page.locator('.onb-fx input[type=checkbox]').first().check()
+      await page.locator('.onb-fx input[aria-label^="Valor"]').first().fill('1.200,00')
+      await shot('passo-a-passo')
+      await nextStep(); await nextStep(); await nextStep()
+      const r = await stored()
+      ok(r.settings.onboarded && r.people.length === 1 && r.projects.length === 1 && r.txs.length === 12 && r.txs.every((t) => r.entities.find((e) => e.id === t.entityId)?.kind === 'pessoal') && r.settings.mainCompany === r.entities.find((e) => e.name === 'RDL').id, `${vp.name}: passo a passo grava empresa principal, saldo, equipe, obra e contas fixas`)
+      ok(r.accounts.some((a) => a.initial === 10000), `${vp.name}: saldo de hoje gravado`)
+      await page.locator('.sidebar [aria-label="Exemplo preenchido"]').click()
+    } else {
+      await page.getByRole('button', { name: 'fazer depois' }).click(); await page.waitForTimeout(200)
+      ok(await page.getByText('Sua plataforma está').count() > 0, `${vp.name}: tela de boas-vindas quando está vazio`)
+      await page.getByText('Ver um exemplo preenchido').click()
+    }
     await page.waitForTimeout(400)
     ok((await stored())?.projects.length === 2, `${vp.name}: exemplo preenchido aparece`)
-    ok(JSON.parse(await page.evaluate(() => localStorage.getItem('rogerio-gestao-v1') || '{"projects":[]}')).projects.length === 0, `${vp.name}: dados reais continuam vazios e separados`)
+    ok(JSON.parse(await page.evaluate(() => localStorage.getItem('rogerio-gestao-v1') || '{"projects":[]}')).projects.length === (desk ? 1 : 0), `${vp.name}: dados reais continuam guardados e separados`)
     await shot('painel')
 
     for (const [h, n] of [['#/agenda', 'agenda'], ['#/financeiro', 'financeiro'], ['#/obras', 'obras'], ['#/orcamentos', 'orcamentos'], ['#/equipe/diarias', 'diarias'], ['#/equipe/folha', 'folha'], ['#/equipe/empreitadas', 'empreitadas'], ['#/equipe/pessoas', 'pessoas'], ['#/cadastros', 'empresas'], ['#/perfil', 'perfil'], ['#/cadastros/categorias', 'categorias'], ['#/config', 'ajustes']]) {
@@ -59,19 +79,37 @@ try {
     await shot('perfil-rdl')
     void rdl
 
-    // novo lançamento de saída
+    // lançar: separação automática
+    const openLaunch = async () => { await page.locator(desk ? '.topbar .pill-btn' : '.fab').click(); await page.waitForTimeout(150) }
     const before = (await stored()).txs.length
-    await page.getByRole('button', { name: 'Lançar', exact: true }).click()
-    await page.getByText('Saída / conta a pagar').click()
-    await page.getByLabel('Descrição', { exact: true }).fill('Cimento CP-II 50 sacos')
+    await openLaunch()
     await page.getByLabel('Valor', { exact: true }).fill('1.750,00')
-    await page.getByLabel('Categoria', { exact: true }).selectOption({ label: 'Material de construção' })
+    await page.getByLabel('Descrição', { exact: true }).fill('Cimento CP-II 50 sacos')
+    ok((await page.locator('.qtx-auto').innerText()).includes('Empresa'), `${vp.name}: cimento vai sozinho para Empresa`)
+    await page.locator('.qtx-more').click()
     await page.getByLabel('Repetir').selectOption('parcelas')
     await page.getByLabel('Quantidade').fill('3')
     await shot('form-saida')
     await modalSave()
     const d1 = await stored()
-    ok(d1.txs.length === before + 3 && Math.abs(d1.txs.filter((t) => t.description.startsWith('Cimento')).reduce((s, t) => s + t.amount, 0) - 1750) < 0.01, `${vp.name}: saída parcelada em 3× soma o total`)
+    const cim = d1.txs.filter((t) => t.description.startsWith('Cimento'))
+    ok(d1.txs.length === before + 3 && Math.abs(cim.reduce((s, t) => s + t.amount, 0) - 1750) < 0.01 && cim.every((t) => t.category === 'Material de construção' && d1.entities.find((e) => e.id === t.entityId)?.kind === 'empresa'), `${vp.name}: saída parcelada em 3× na empresa, categoria automática`)
+    await openLaunch()
+    await page.getByLabel('Valor', { exact: true }).fill('300')
+    await page.getByLabel('Descrição', { exact: true }).fill('Mercado Assaí')
+    await modalSave()
+    const merc = (await stored()).txs.find((t) => t.description === 'Mercado Assaí')
+    ok(merc && merc.category === 'Mercado' && d1.entities.find((e) => e.id === merc.entityId)?.kind === 'pessoal' && merc.paid, `${vp.name}: mercado vai sozinho para Pessoal (já pago)`)
+    await openLaunch()
+    await page.getByLabel('Valor', { exact: true }).fill('250')
+    await page.getByLabel('Descrição', { exact: true }).fill('Conta de luz')
+    ok(await page.locator('.qtx-pick').count() === 1, `${vp.name}: conta de luz pergunta Empresa ou Pessoal`)
+    await page.locator('.qtx-pick button', { hasText: 'Pessoal' }).click()
+    await modalSave()
+    await openLaunch()
+    await page.getByLabel('Descrição', { exact: true }).fill('conta de luz')
+    ok((await page.locator('.qtx-auto').innerText()).includes('Pessoal'), `${vp.name}: aprende — conta de luz já vem Pessoal na próxima`)
+    await page.locator('.modal-foot .btn', { hasText: 'Cancelar' }).click()
 
     // marcar como pago
     await go('#/financeiro')
@@ -155,24 +193,33 @@ try {
 
     // agenda
     await go('#/agenda')
-    await page.getByRole('button', { name: '+ Compromisso' }).click()
+    await shot('agenda-dias')
+    await page.getByRole('button', { name: 'Novo compromisso' }).click()
     await page.getByLabel('Título').fill('Vistoria teste')
     await modalSave()
     ok((await stored()).events.some((e) => e.title === 'Vistoria teste'), `${vp.name}: compromisso na agenda`)
 
-    // carteira pessoal
+    // financeiro: ver Pessoal / Empresa (separado sozinho)
     const pess = d6.entities.find((e) => e.kind === 'pessoal')
-    await page.evaluate(() => (location.hash = '#/'))
-    await page.locator('.scope-seg button:visible', { hasText: 'Pessoal' }).click(); await page.waitForTimeout(250)
+    await go('#/financeiro')
+    await page.locator('.view-switch button', { hasText: 'Pessoal' }).click(); await page.waitForTimeout(250)
     await shot('pessoal')
-    ok((await stored()).settings.scope === pess.id, `${vp.name}: filtro Pessoal`)
-
-    // empresas sempre juntas (sem filtro de CNPJ no topo) e modo escuro
-    await page.locator('.scope-seg button:visible', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
-    ok((await stored()).settings.scope === 'empresa' && await page.locator('.cnpj-pick').count() === 0, `${vp.name}: Empresa junta todos os CNPJs`)
-    // início reorganizado: central de comando, atenção e resumo lateral
+    ok((await stored()).settings.scope === pess.id, `${vp.name}: filtro Pessoal no Financeiro`)
+    await page.locator('.view-switch button', { hasText: 'Empresa' }).click(); await page.waitForTimeout(150)
+    ok((await stored()).settings.scope === 'empresa' && await page.locator('.scope-seg').count() === 0, `${vp.name}: sem seletor manual no topo; Empresa junta todos os CNPJs`)
     await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
-    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.kpi').count() === 4, `${vp.name}: início com atalhos e resumo`)
+    ok(await page.locator('.cmd-btn').count() === 6 && await page.locator('.hero-stats button').count() === 3 && await page.locator('.sched').count() === 1 && await page.locator('.split-row').count() === 2, `${vp.name}: início com resumo, atalhos, agenda e empresa × pessoal`)
+    // importar planilha
+    await go('#/importar')
+    const tx7 = (await stored()).txs.length
+    await page.locator('input[type=file]').setInputFiles({ name: 'gastos.csv', mimeType: 'text/csv', buffer: Buffer.from('Data;Descrição;Valor\n01/10/2026;Cimento CP2;-450,00\n02/10/2026;Mercado Assaí;-312,40\n03/10/2026;Medição escola;12.500,00\n05/10/2026;Energia elétrica;-289,90\nTotal;;11447,70\n') })
+    await page.waitForTimeout(400)
+    ok(await page.locator('.imp-row:not(.head)').count() === 4 && await page.locator('.imp-row.unsure').count() === 1, `${vp.name}: planilha lida, ${await page.locator('.imp-row:not(.head)').count()} linhas e 1 para perguntar`)
+    await shot('importar')
+    await page.getByRole('button', { name: 'todas empresa' }).click()
+    await page.locator('.imp-foot .pill-btn').click(); await page.waitForTimeout(300)
+    const d7 = await stored()
+    ok(d7.txs.length === tx7 + 4 && d7.txs.some((t) => t.description === 'Medição escola' && t.kind === 'in' && t.amount === 12500), `${vp.name}: importa os lançamentos com entrada e saída`)
     // tabela de preços: calcula e vira orçamento
     await page.evaluate(() => (location.hash = '#/precos')); await page.waitForTimeout(250)
     await page.getByRole('button', { name: '+ Serviço' }).click(); await page.waitForTimeout(150)
@@ -196,7 +243,7 @@ try {
     await shot('escuro')
     await page.locator(vp.width < 800 ? '.sheet [aria-label="Exemplo preenchido"]' : '.sidebar [aria-label="Exemplo preenchido"]').click(); await page.waitForTimeout(250)
     await page.evaluate(() => (location.hash = '#/')); await page.waitForTimeout(250)
-    ok(await page.getByText('Vamos começar').count() > 0, `${vp.name}: olho volta para a versão vazia`)
+    ok(await page.evaluate(() => localStorage.getItem('rogerio-gestao-exemplo-ligado')) !== '1' && await page.locator('.demo-bar').count() === 0, `${vp.name}: olho volta para os dados reais`)
     ok(errors.length === 0, `${vp.name}: nenhum erro de página ${errors.join(' | ')}`)
     await page.close()
   }
